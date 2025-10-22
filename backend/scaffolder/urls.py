@@ -15,7 +15,8 @@ model_router = DefaultRouter()
 model_router.register(r'fields', views.ModelFieldViewSet, basename='field')
 
 urlpatterns = [
-    path('api/', include(router.urls)),
-    path('api/projects/<uuid:project_pk>/', include(project_router.urls)),
-    path('api/projects/<uuid:project_pk>/models/<uuid:model_pk>/', include(model_router.urls)),
+    # Remove the 'api/' prefix since it's already in the main urls.py
+    path('', include(router.urls)),  # ← CHANGED: Empty path
+    path('projects/<uuid:project_pk>/', include(project_router.urls)),
+    path('projects/<uuid:project_pk>/models/<uuid:model_pk>/', include(model_router.urls)),
 ]
