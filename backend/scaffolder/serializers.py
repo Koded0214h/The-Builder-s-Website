@@ -1,0 +1,59 @@
+from rest_framework import serializers
+from .models import Project, DatabaseModel, ModelField, Relationship, GeneratedProject
+
+class ModelFieldSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ModelField
+        fields = '__all__'
+        read_only_fields = ('id',)
+
+class RelationshipSerializer(serializers.ModelSerializer):
+    from_model_name = serializers.CharField(source='from_model.name', read_only=True)
+    to_model_name = serializers.CharField(source='to_model.name', read_only=True)
+    
+    class Meta:
+        model = Relationship
+        fields = '__all__'
+        read_only_fields = ('id',)
+
+class DatabaseModelSerializer(serializers.ModelSerializer):
+    fields = ModelFieldSerializer(many=True, read_only=True)
+    outgoing_relationships = RelationshipSerializer(many=True, read_only=True)
+    incoming_relationships = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = DatabaseModel
+        fields = '__all__'
+        read_only_fields = ('id',)
+    
+    def get_incoming_relationships(self, obj):
+        relationships = Relationship.objects.filter(to_model=obj)
+        return RelationshipSerializer(relationships, many=True).data
+
+class ProjectListSerializer(serializers.ModelSerializer):
+    owner_username = serializers.CharField(source='owner.username', read_only=True)
+    model_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Project
+        fields = ('id', 'name', 'description', 'framework', 'owner_username', 
+                 'created_at', 'model_count')
+        read_only_fields = ('id', 'created_at')
+    
+    def get_model_count(self, obj):
+        return obj.database_models.count()
+
+class ProjectDetailSerializer(ProjectListSerializer):
+    database_models = DatabaseModelSerializer(many=True, read_only=True)
+    
+    class Meta(ProjectListSerializer.Meta):
+        fields = ProjectListSerializer.Meta.fields + (
+            'include_docker', 'include_cors', 'include_rate_limiting', 
+            'include_logging', 'include_env_example', 'database_models'
+        )
+
+class GeneratedProjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GeneratedProject
+        fields = '__all__'
+        read_only_fields = ('id', 'generated_at')
