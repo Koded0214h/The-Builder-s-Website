@@ -7,6 +7,7 @@ import ProjectDashboard from './pages/ProjectDashboard';
 import Database from './pages/Database';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Views from './pages/Views';
+import URLs from './pages/URLS';
 
 function App() {
 
@@ -20,7 +21,9 @@ function App() {
         <Route path="/project/:projectId" element={<ProjectDashboard />} />
         <Route path="/project/:projectId/database" element={<Database />} />
         <Route path="/project/:projectId/views" element={<Views />} />
+        <Route path="/project/:projectId/urls" element={<URLs />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+
       </Routes>
     </BrowserRouter>
   )

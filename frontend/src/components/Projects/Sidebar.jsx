@@ -5,7 +5,7 @@ const Sidebar = ({ onPublish, activeTab = 'dashboard' }) => {
       { icon: 'dashboard', label: 'Dashboard', active: activeTab === 'dashboard', path: '/project/1' },
       { icon: 'database', label: 'Database', active: activeTab === 'database', path: '/project/1/database' },
       { icon: 'api', label: 'Views', active: activeTab === 'views', path: '/project/1/views' },
-      { icon: 'route', label: 'URLs', active: activeTab === 'urls', path: '#' },
+      { icon: 'route', label: 'URLs', active: activeTab === 'urls', path: '/project/1/urls' },
       { icon: 'lock', label: 'Permissions', active: activeTab === 'permissions', path: '#' },
     ];
   
