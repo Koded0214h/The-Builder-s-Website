@@ -9,6 +9,8 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import Views from './pages/Views';
 import URLs from './pages/URLS';
 import Settings from './pages/Settings';
+import ComingSoon from './pages/ComingSoon';
+import Publish from './pages/Publish';
 
 function App() {
 
@@ -19,11 +21,13 @@ function App() {
         <Route path='/register' element={<Signup />} />
         <Route path='/login' element={<Login />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/publish" element={<Publish />} />
         <Route path="/project/:projectId" element={<ProjectDashboard />} />
         <Route path="/project/:projectId/database" element={<Database />} />
         <Route path="/project/:projectId/views" element={<Views />} />
         <Route path="/project/:projectId/urls" element={<URLs />} />
         <Route path="/project/:projectId/settings" element={<Settings />} />
+        <Route path="/project/:projectId/permissions" element={<ComingSoon />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
       </Routes>

@@ -1,12 +1,16 @@
 import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const Sidebar = ({ onPublish, activeTab = 'dashboard' }) => {
+
+  const navigate = useNavigate()
+
     const mainNavItems = [
       { icon: 'dashboard', label: 'Dashboard', active: activeTab === 'dashboard', path: '/project/1' },
       { icon: 'database', label: 'Database', active: activeTab === 'database', path: '/project/1/database' },
       { icon: 'api', label: 'Views', active: activeTab === 'views', path: '/project/1/views' },
       { icon: 'route', label: 'URLs', active: activeTab === 'urls', path: '/project/1/urls' },
-      { icon: 'lock', label: 'Permissions', active: activeTab === 'permissions', path: '#' },
+      { icon: 'lock', label: 'Permissions', active: activeTab === 'permissions', path: '/project/1/permissions' },
     ];
   
     const bottomNavItems = [
@@ -14,11 +18,7 @@ const Sidebar = ({ onPublish, activeTab = 'dashboard' }) => {
     ];
   
     const handlePublish = () => {
-      if (onPublish) {
-        onPublish();
-      } else {
-        console.log("Publish project clicked");
-      }
+      navigate("/publish");
     };
   
     return (
