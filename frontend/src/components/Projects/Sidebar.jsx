@@ -1,21 +1,23 @@
 import { Link } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 
 const Sidebar = ({ onPublish, activeTab = 'dashboard' }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { projectId } = useParams(); // Get projectId from URL params
 
+  // Use the actual projectId from URL instead of hardcoded '1'
   const mainNavItems = [
-    { icon: 'dashboard', label: 'Dashboard', active: activeTab === 'dashboard', path: '/project/1' },
-    { icon: 'database', label: 'Database', active: activeTab === 'database', path: '/project/1/database' },
-    { icon: 'api', label: 'Views', active: activeTab === 'views', path: '/project/1/views' },
-    { icon: 'route', label: 'URLs', active: activeTab === 'urls', path: '/project/1/urls' },
-    { icon: 'lock', label: 'Permissions', active: activeTab === 'permissions', path: '/project/1/permissions' },
+    { icon: 'dashboard', label: 'Dashboard', active: activeTab === 'dashboard', path: `/project/${projectId}` },
+    { icon: 'database', label: 'Database', active: activeTab === 'database', path: `/project/${projectId}/database` },
+    { icon: 'api', label: 'Views', active: activeTab === 'views', path: `/project/${projectId}/views` },
+    { icon: 'route', label: 'URLs', active: activeTab === 'urls', path: `/project/${projectId}/urls` },
+    { icon: 'lock', label: 'Permissions', active: activeTab === 'permissions', path: `/project/${projectId}/permissions` },
   ];
 
   const bottomNavItems = [
-    { icon: 'settings', label: 'Settings', path: '/project/1/settings' },
+    { icon: 'settings', label: 'Settings', path: `/project/${projectId}/settings` },
   ];
 
   const handlePublish = () => {

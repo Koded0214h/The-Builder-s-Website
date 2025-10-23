@@ -4,7 +4,8 @@ from .models import Project, DatabaseModel, ModelField, Relationship, GeneratedP
 class ModelFieldSerializer(serializers.ModelSerializer):
     class Meta:
         model = ModelField
-        fields = '__all__'
+        fields = ['id', 'name', 'field_type', 'max_length', 'null', 'blank', 
+                 'unique', 'default_value', 'help_text', 'order']
         read_only_fields = ('id',)
 
 class RelationshipSerializer(serializers.ModelSerializer):
@@ -23,7 +24,10 @@ class DatabaseModelSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = DatabaseModel
-        fields = '__all__'
+        fields = [
+            'id', 'name', 'description', 'display_field', 'order',
+            'fields', 'outgoing_relationships', 'incoming_relationships'
+        ]
         read_only_fields = ('id',)
     
     def get_incoming_relationships(self, obj):

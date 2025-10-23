@@ -3,60 +3,86 @@ import { useState, useEffect } from 'react';
 const FieldPropertiesPanel = ({ isOpen, onClose, selectedField, onSaveField, isNewField = false, modelId }) => {
   const [fieldData, setFieldData] = useState({
     name: '',
-    field_type: 'CharField',
+    field_type: 'char', // Use 'char' instead of 'CharField'
     max_length: null,
     null: false,
     blank: false,
     unique: false,
     default_value: '',
     help_text: '',
+    order: 0,
   });
 
   const fieldTypes = [
-    { value: 'CharField', label: 'Char' },
-    { value: 'TextField', label: 'Text' },
-    { value: 'IntegerField', label: 'Integer' },
-    { value: 'BooleanField', label: 'Boolean' },
-    { value: 'DateTimeField', label: 'DateTime' },
-    { value: 'EmailField', label: 'Email' },
-    { value: 'URLField', label: 'URL' },
-    { value: 'DecimalField', label: 'Decimal' },
-    { value: 'FloatField', label: 'Float' },
-    { value: 'JSONField', label: 'JSON' },
+    { value: 'char', label: 'CharField' },
+    { value: 'text', label: 'TextField' },
+    { value: 'integer', label: 'IntegerField' },
+    { value: 'boolean', label: 'BooleanField' },
+    { value: 'date', label: 'DateField' },
+    { value: 'datetime', label: 'DateTimeField' },
+    { value: 'email', label: 'EmailField' },
+    { value: 'url', label: 'URLField' },
+    { value: 'decimal', label: 'DecimalField' },
+    { value: 'float', label: 'FloatField' },
+    { value: 'json', label: 'JSONField' },
   ];
 
-  useEffect(() => {
-    if (selectedField) {
-      setFieldData({
-        name: selectedField.name || '',
-        field_type: selectedField.field_type || 'CharField',
-        max_length: selectedField.max_length || null,
-        null: selectedField.null || false,
-        blank: selectedField.blank || false,
-        unique: selectedField.unique || false,
-        default_value: selectedField.default_value || '',
-        help_text: selectedField.help_text || '',
-      });
-    } else if (isNewField) {
-      setFieldData({
-        name: '',
-        field_type: 'CharField',
-        max_length: null,
-        null: false,
-        blank: false,
-        unique: false,
-        default_value: '',
-        help_text: '',
-      });
-    }
-  }, [selectedField, isNewField]);
+  // In FieldPropertiesPanel, update the useEffect:
+useEffect(() => {
+  if (selectedField) {
+    setFieldData({
+      name: selectedField.name || '',
+      field_type: selectedField.field_type || 'char', // Ensure correct value
+      max_length: selectedField.max_length || null,
+      null: selectedField.null || false,
+      blank: selectedField.blank || false,
+      unique: selectedField.unique || false,
+      default_value: selectedField.default_value || '',
+      help_text: selectedField.help_text || '',
+      order: selectedField.order || 0,
+    });
+  } else if (isNewField) {
+    setFieldData({
+      name: '',
+      field_type: 'char', // Default to 'char'
+      max_length: null,
+      null: false,
+      blank: false,
+      unique: false,
+      default_value: '',
+      help_text: '',
+      order: 0,
+    });
+  }
+}, [selectedField, isNewField]);
 
-  const handleSave = () => {
-    if (onSaveField) {
-      onSaveField(fieldData, modelId);
-    }
-    onClose();
+  // In FieldPropertiesPanel.jsx, update the handleSave function:
+const handleSave = () => {
+  // Ensure we have all required fields with proper values
+  const completeFieldData = {
+    name: fieldData.name.trim(),
+    field_type: fieldData.field_type,
+    max_length: fieldData.max_length ? parseInt(fieldData.max_length) : null, // Ensure it's a number
+    null: Boolean(fieldData.null),
+    blank: Boolean(fieldData.blank),
+    unique: Boolean(fieldData.unique),
+    default_value: fieldData.default_value || '',
+    help_text: fieldData.help_text || '',
+    order: fieldData.order || 0
   };
+
+  console.log('💾 Saving field data:', completeFieldData);
+  console.log('📊 Max length details:', {
+    original: fieldData.max_length,
+    parsed: completeFieldData.max_length,
+    type: typeof completeFieldData.max_length
+  });
+
+  if (onSaveField) {
+    onSaveField(completeFieldData, modelId);
+  }
+  onClose();
+};
 
   const generateCodePreview = () => {
     const { name, field_type, max_length, null: isNull, blank, unique, default_value } = fieldData;
@@ -129,18 +155,26 @@ const FieldPropertiesPanel = ({ isOpen, onClose, selectedField, onSaveField, isN
                 </select>
               </label>
 
-              {fieldData.field_type === 'CharField' && (
-                <label className="flex flex-col">
-                  <p className="text-primary-text text-sm font-medium pb-2">Max Length</p>
-                  <input 
-                    type="number"
-                    value={fieldData.max_length || ''}
-                    onChange={(e) => setFieldData({...fieldData, max_length: e.target.value ? parseInt(e.target.value) : null})}
-                    className="w-full rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary border-0 neumorphic-inset-select h-12 p-3 text-base font-normal leading-normal placeholder:text-gray-500"
-                    placeholder="255"
-                  />
-                </label>
-              )}
+            {fieldData.field_type === 'char' && (
+              <label className="flex flex-col">
+                <p className="text-primary-text text-sm font-medium pb-2">Max Length</p>
+                <input 
+                  type="number"
+                  min="1"
+                  max="255"
+                  value={fieldData.max_length || ''}
+                  onChange={(e) => setFieldData({
+                    ...fieldData, 
+                    max_length: e.target.value ? parseInt(e.target.value) : null
+                  })}
+                  className="w-full rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary border-0 neumorphic-inset-select h-12 p-3 text-base font-normal leading-normal placeholder:text-gray-500"
+                  placeholder="255"
+                />
+                <p className="text-gray-400 text-xs mt-1">
+                  Maximum length for this character field (1-255)
+                </p>
+              </label>
+            )}
             </div>
           </div>
 

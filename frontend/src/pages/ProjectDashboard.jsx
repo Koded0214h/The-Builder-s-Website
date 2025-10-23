@@ -1,3 +1,7 @@
+// src/pages/ProjectDashboard.jsx
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { projectsAPI } from '../services/api';
 import Sidebar from '../components/Projects/Sidebar';
 import Breadcrumbs from '../components/Projects/Breadcrumbs';
 import PageHeader from '../components/Projects/PageHeader';
@@ -6,55 +10,96 @@ import ModelsGrid from '../components/Projects/ModelsGrid';
 import ActionButton from '../components/Projects/ActionButton';
 
 const ProjectDashboard = () => {
-  const recentModels = [
-    {
-      id: 1,
-      name: "User Model",
-      description: "Represents the application's users.",
-      fields: 8,
-      lastUpdated: "2h ago"
-    },
-    {
-      id: 2,
-      name: "Product Model",
-      description: "Contains all product information.",
-      fields: 15,
-      lastUpdated: "1d ago"
-    },
-    {
-      id: 3,
-      name: "Order Model",
-      description: "Tracks customer orders and details.",
-      fields: 11,
-      lastUpdated: "3d ago"
-    }
-  ];
+  const { projectId } = useParams();
+  const navigate = useNavigate();
+  const [project, setProject] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const stats = [
-    { label: "Models", value: "12" },
-    { label: "Endpoints", value: "24" },
-    { label: "Active Users", value: "3" },
-    { label: "Project Health", value: "99%" }
-  ];
+  useEffect(() => {
+    fetchProject();
+  }, [projectId]);
+
+  const fetchProject = async () => {
+    try {
+      setLoading(true);
+      const projectData = await projectsAPI.getProject(projectId);
+      setProject(projectData);
+    } catch (err) {
+      console.error('Error fetching project:', err);
+      setError('Failed to load project');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleNewModel = () => {
     console.log("Create new model clicked");
-    // Add your new model logic here
+    navigate(`/project/${projectId}/database`);
   };
 
   const handlePublish = () => {
     console.log("Publish project clicked");
-    // Add your publish logic here
-    // This could open a modal, make an API call, etc.
+    navigate('/publish');
   };
+
+  if (loading) {
+    return (
+      <div className="relative flex min-h-screen w-full flex-row bg-background-dark font-body text-primary-text">
+        <Sidebar onPublish={handlePublish} />
+        <main className="flex-1 p-8 md:p-12 overflow-y-auto flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error || !project) {
+    return (
+      <div className="relative flex min-h-screen w-full flex-row bg-background-dark font-body text-primary-text">
+        <Sidebar onPublish={handlePublish} />
+        <main className="flex-1 p-8 md:p-12 overflow-y-auto flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-400 text-xl mb-4">{error || 'Project not found'}</p>
+            <button 
+              onClick={() => navigate('/dashboard')}
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+            >
+              Back to Dashboard
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Transform project data for the components
+  const recentModels = project.database_models?.map(model => ({
+    id: model.id,
+    name: model.name,
+    description: model.description || 'No description',
+    fields: model.fields?.length || 0,
+    lastUpdated: new Date(model.updated_at || model.created_at).toLocaleDateString()
+  })) || [];
+
+  const stats = [
+    { label: "Models", value: project.database_models?.length || "0" },
+    { label: "Endpoints", value: (project.database_models?.length || 0) * 5 }, // 5 endpoints per model
+    { label: "Framework", value: project.framework === 'django' ? 'Django' : 'Express.js' },
+    { label: "Project Health", value: "99%" }
+  ];
 
   return (
     <div className="relative flex min-h-screen w-full flex-row bg-background-dark font-body text-primary-text">
-      <Sidebar onPublish={handlePublish} />
+      <Sidebar projectId={projectId} onPublish={handlePublish} />
       
       <main className="flex-1 p-8 md:p-12 overflow-y-auto">
         <div className="max-w-7xl mx-auto">
-          <Breadcrumbs projectName="E-commerce API" currentPage="Dashboard" />
+          <Breadcrumbs 
+            projectName={project.name} 
+            currentPage="Dashboard" 
+            projectId={projectId} 
+          />
           
           <PageHeader 
             title="Dashboard" 

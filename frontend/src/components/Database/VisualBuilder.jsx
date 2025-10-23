@@ -5,18 +5,9 @@ import RelationshipLine from './RelationshipLine';
 import RelationshipTypeModal from './RelationshipTypeModal';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 
-const VisualBuilder = ({ models, onAddModel, onGenerateCode, onFieldClick, onAddField, onDeleteModel, onDeleteRelationship }) => {
-  const [modelPositions, setModelPositions] = useState(() => {
-    const positions = {};
-    models.forEach((model, index) => {
-      positions[model.id] = { 
-        x: 250 + (index * 300), 
-        y: 150 + (index % 2 === 0 ? 0 : 200) 
-      };
-    });
-    return positions;
-  });
-
+const VisualBuilder = ({ models, onAddModel, onGenerateCode, onFieldClick, onAddField, onDeleteModel, onDeleteRelationship, onModelUpdate  }) => {
+  // Initialize model positions based on models prop
+  const [modelPositions, setModelPositions] = useState({});
   const [relationships, setRelationships] = useState([]);
   const [isRelationshipMode, setIsRelationshipMode] = useState(false);
   const [showRelationshipModal, setShowRelationshipModal] = useState(false);
@@ -25,24 +16,59 @@ const VisualBuilder = ({ models, onAddModel, onGenerateCode, onFieldClick, onAdd
   const [selectedItem, setSelectedItem] = useState(null);
   const [zoom, setZoom] = useState(1);
 
-  // Keyboard shortcuts
+  // Initialize model positions when models change
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedItem) {
-          handleDeleteClick(selectedItem);
-        }
+    const newPositions = {};
+    models.forEach((model, index) => {
+      // Keep existing position if model already has one, otherwise assign new position
+      if (modelPositions[model.id]) {
+        newPositions[model.id] = modelPositions[model.id];
+      } else {
+        newPositions[model.id] = { 
+          x: 250 + (index * 300), 
+          y: 150 + (index % 2 === 0 ? 0 : 200) 
+        };
       }
-      if (e.key === 'Escape') {
-        setSelectedItem(null);
-        setIsRelationshipMode(false);
-        setSelectedFields([]);
-      }
-    };
+    });
+    setModelPositions(newPositions);
+  }, [models]); // Only run when models array changes
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedItem]);
+
+  // Keyboard shortcuts
+  // In your VisualBuilder.jsx, update the keyboard handler:
+useEffect(() => {
+  const handleKeyDown = (e) => {
+    // Don't handle shortcuts in relationship mode
+    if (isRelationshipMode) {
+      return;
+    }
+
+    // Check if we're in any kind of form input
+    const isEditing = 
+      e.target.tagName === 'INPUT' || 
+      e.target.tagName === 'TEXTAREA' || 
+      e.target.isContentEditable;
+    
+    if (isEditing) {
+      // Don't handle global shortcuts when editing
+      return;
+    }
+
+    if ((e.key === 'Delete' || e.key === 'Backspace') && selectedItem) {
+      e.preventDefault(); // Prevent browser back navigation
+      handleDeleteClick(selectedItem);
+    }
+    
+    if (e.key === 'Escape') {
+      setSelectedItem(null);
+      setIsRelationshipMode(false);
+      setSelectedFields([]);
+    }
+  };
+
+  window.addEventListener('keydown', handleKeyDown);
+  return () => window.removeEventListener('keydown', handleKeyDown);
+}, [selectedItem, isRelationshipMode]); // Add isRelationshipMode to dependencies
 
   const updateModelPosition = useCallback((modelId, newPosition) => {
     setModelPositions(prev => ({
@@ -50,6 +76,15 @@ const VisualBuilder = ({ models, onAddModel, onGenerateCode, onFieldClick, onAdd
       [modelId]: newPosition
     }));
   }, []);
+
+  const handleModelUpdate = useCallback(async (modelId, updateData) => {
+    console.log('🔄 VisualBuilder handleModelUpdate called:', { modelId, updateData });
+    if (onModelUpdate) {
+      await onModelUpdate(modelId, updateData);
+    } else {
+      console.error('❌ onModelUpdate is not provided to VisualBuilder!');
+    }
+  }, [onModelUpdate]);
 
   const handleFieldClickForRelationship = useCallback((field, modelId) => {
     if (!isRelationshipMode) return;
@@ -59,7 +94,7 @@ const VisualBuilder = ({ models, onAddModel, onGenerateCode, onFieldClick, onAdd
       modelId,
       modelName: models.find(m => m.id === modelId)?.name || `Model ${modelId}`,
       modelPosition: modelPositions[modelId],
-      fieldIndex: models.find(m => m.id === modelId)?.fields.findIndex(f => f.name === field.name) || 0
+      fieldIndex: models.find(m => m.id === modelId)?.fields?.findIndex(f => f.name === field.name) || 0
     };
     
     setSelectedFields(prev => {
@@ -117,12 +152,20 @@ const VisualBuilder = ({ models, onAddModel, onGenerateCode, onFieldClick, onAdd
     setSelectedItem({ type: 'relationship', id: relationshipId });
   }, []);
 
-  const handleCanvasClick = useCallback((e) => {
-    // Only deselect if clicking on empty canvas (not a model or relationship)
-    if (e.target.tagName === 'svg' || e.target.className?.includes?.('canvas-area')) {
-      setSelectedItem(null);
-    }
-  }, []);
+  // In VisualBuilder.jsx, update the handleCanvasClick:
+const handleCanvasClick = useCallback((e) => {
+  // In relationship mode, clicking canvas should cancel relationship mode
+  if (isRelationshipMode) {
+    setIsRelationshipMode(false);
+    setSelectedFields([]);
+    return;
+  }
+  
+  // Only deselect if clicking on empty canvas (not a model or relationship)
+  if (e.target.tagName === 'svg' || e.target.className?.includes?.('canvas-area')) {
+    setSelectedItem(null);
+  }
+}, [isRelationshipMode]);
 
   const handleDeleteClick = useCallback((item) => {
     setSelectedItem(item);
@@ -325,21 +368,28 @@ const VisualBuilder = ({ models, onAddModel, onGenerateCode, onFieldClick, onAdd
         </svg>
 
         {/* Model Cards */}
-        {models.map((model) => (
-          <ModelCard
-            key={model.id}
-            model={model}
-            position={modelPositions[model.id]}
-            onFieldClick={onFieldClick}
-            onAddField={onAddField}
-            onFieldClickForRelationship={handleFieldClickForRelationship}
-            onModelSelect={handleModelSelect}
-            isRelationshipMode={isRelationshipMode}
-            isSelected={selectedItem?.type === 'model' && selectedItem.id === model.id}
-            zoom={zoom}
-            onPositionChange={updateModelPosition}
-          />
-        ))}
+        {models.map((model) => {
+          const position = modelPositions[model.id];
+          // Only render if position is available
+          if (!position) return null;
+          
+          return (
+            <ModelCard
+              key={model.id}
+              model={model}
+              position={position}
+              onFieldClick={onFieldClick}
+              onAddField={onAddField}
+              onFieldClickForRelationship={handleFieldClickForRelationship}
+              onModelSelect={handleModelSelect}
+              onModelUpdate={handleModelUpdate} // ← ADD THIS LINE
+              isRelationshipMode={isRelationshipMode}
+              isSelected={selectedItem?.type === 'model' && selectedItem.id === model.id}
+              zoom={zoom}
+              onPositionChange={updateModelPosition}
+            />
+          );
+        })}
 
         {/* Floating Toolbar */}
         <FloatingToolbar 

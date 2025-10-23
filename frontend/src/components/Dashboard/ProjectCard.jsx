@@ -1,7 +1,7 @@
 // src/components/Dashboard/ProjectCard.jsx
 import { useState } from 'react';
-import { projectsAPI } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
+import { projectsAPI } from '../../services/api';
 
 const ProjectCard = ({ project, onDelete }) => {
   const [isDeleting, setIsDeleting] = useState(false);
@@ -30,17 +30,19 @@ const ProjectCard = ({ project, onDelete }) => {
   const handleEdit = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    navigate(`/projects/${project.id}/edit`);
+    // Navigate to project settings or edit page
+    navigate(`/project/${project.id}/settings`);
   };
 
   const handleGenerate = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    navigate(`/projects/${project.id}/generate`);
+    navigate(`/publish`); // Or wherever your generate/publish page is
   };
 
   const handleCardClick = () => {
-    navigate(`/projects/${project.id}`);
+    // Navigate to the Project Dashboard
+    navigate(`/project/${project.id}`);
   };
 
   const getFrameworkBadge = (framework) => {
