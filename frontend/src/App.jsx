@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import ProjectDashboard from './pages/ProjectDashboard';
 import Database from './pages/Database';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 
 function App() {
 
@@ -17,6 +18,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/project/:projectId" element={<ProjectDashboard />} />
         <Route path="/project/:projectId/database" element={<Database />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       </Routes>
     </BrowserRouter>
   )

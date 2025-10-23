@@ -201,9 +201,9 @@ const Landing = () => {
             © 2025 Rapid Scaffolder. All rights reserved.
           </p>
           <div className="flex gap-6 order-3 md:order-2">
-            <a className="text-sm text-gray-400 hover:text-white" href="#">
+            <Link to='/privacy-policy' className="text-sm text-gray-400 hover:text-white" href="#">
               Privacy Policy
-            </a>
+            </Link>
             <a className="text-sm text-gray-400 hover:text-white" href="#">
               Terms of Service
             </a>
