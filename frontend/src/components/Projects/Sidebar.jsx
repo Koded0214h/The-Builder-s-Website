@@ -1,14 +1,16 @@
-const Sidebar = ({ onPublish }) => {
+import { Link } from "react-router-dom";
+
+const Sidebar = ({ onPublish, activeTab = 'dashboard' }) => {
     const mainNavItems = [
-      { icon: 'dashboard', label: 'Dashboard', active: true },
-      { icon: 'database', label: 'Database' },
-      { icon: 'api', label: 'Views' },
-      { icon: 'route', label: 'URLs' },
-      { icon: 'lock', label: 'Permissions' },
+      { icon: 'dashboard', label: 'Dashboard', active: activeTab === 'dashboard', path: '/project/1' },
+      { icon: 'database', label: 'Database', active: activeTab === 'database', path: '/project/1/database' },
+      { icon: 'api', label: 'Views', active: activeTab === 'views', path: '#' },
+      { icon: 'route', label: 'URLs', active: activeTab === 'urls', path: '#' },
+      { icon: 'lock', label: 'Permissions', active: activeTab === 'permissions', path: '#' },
     ];
   
     const bottomNavItems = [
-      { icon: 'settings', label: 'Settings' },
+      { icon: 'settings', label: 'Settings', path: '#' },
     ];
   
     const handlePublish = () => {
@@ -16,7 +18,6 @@ const Sidebar = ({ onPublish }) => {
         onPublish();
       } else {
         console.log("Publish project clicked");
-        // Add your publish logic here
       }
     };
   
@@ -33,14 +34,14 @@ const Sidebar = ({ onPublish }) => {
           
           <nav className="flex flex-col gap-4">
             {mainNavItems.map((item, index) => (
-              <a
+              <Link
                 key={index}
+                to={item.path}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   item.active 
                     ? 'bg-black/20 shadow-neumorphic-inset' 
                     : 'hover:bg-white/5'
                 }`}
-                href="#"
               >
                 <span className={`material-symbols-outlined ${
                   item.active ? 'text-primary' : 'text-gray-400'
@@ -52,13 +53,12 @@ const Sidebar = ({ onPublish }) => {
                 }`}>
                   {item.label}
                 </p>
-              </a>
+              </Link>
             ))}
           </nav>
         </div>
         
         <div className="flex flex-col gap-4">
-          {/* Publish Button */}
           <button 
             onClick={handlePublish}
             className="flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors shadow-neumorphic border border-primary/20"
@@ -67,16 +67,15 @@ const Sidebar = ({ onPublish }) => {
             <p className="text-primary font-medium">Publish</p>
           </button>
   
-          {/* Settings Link */}
           {bottomNavItems.map((item, index) => (
-            <a
+            <Link
               key={index}
+              to={item.path}
               className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white/5 transition-colors"
-              href="#"
             >
               <span className="material-symbols-outlined text-gray-400">{item.icon}</span>
               <p className="text-primary-text font-medium">{item.label}</p>
-            </a>
+            </Link>
           ))}
         </div>
       </aside>

@@ -1,9 +1,9 @@
-import Sidebar from '../components/ProjectDashboard/Sidebar';
-import Breadcrumbs from '../components/ProjectDashboard/Breadcrumbs';
-import PageHeader from '../components/ProjectDashboard/PageHeader';
-import StatsGrid from '../components/ProjectDashboard/StatsGrid';
-import ModelsGrid from '../components/ProjectDashboard/ModelsGrid';
-import ActionButton from '../components/ProjectDashboard/ActionButton';
+import Sidebar from '../components/Projects/Sidebar';
+import Breadcrumbs from '../components/Projects/Breadcrumbs';
+import PageHeader from '../components/Projects/PageHeader';
+import StatsGrid from '../components/Projects/StatsGrid';
+import ModelsGrid from '../components/Projects/ModelsGrid';
+import ActionButton from '../components/Projects/ActionButton';
 
 const ProjectDashboard = () => {
   const recentModels = [
