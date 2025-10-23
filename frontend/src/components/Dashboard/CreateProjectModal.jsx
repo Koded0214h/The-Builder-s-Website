@@ -1,7 +1,12 @@
+// src/components/Dashboard/CreateProjectModal.jsx
 import { useState } from 'react';
+import { projectsAPI, modelsAPI } from '../../services/api';
 
-const CreateProjectModal = ({ isOpen, onClose }) => {
+const CreateProjectModal = ({ isOpen, onClose, onProjectCreated }) => {
   const [currentStep, setCurrentStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  
   const [projectData, setProjectData] = useState({
     name: '',
     description: '',
@@ -55,7 +60,14 @@ const CreateProjectModal = ({ isOpen, onClose }) => {
 
   const handleAddModel = () => {
     if (currentModel.name.trim()) {
-      setModels(prev => [...prev, { ...currentModel, id: Date.now() }]);
+      setModels(prev => [...prev, { 
+        ...currentModel, 
+        id: Date.now(),
+        fields: currentModel.fields.map((field, index) => ({
+          ...field,
+          order: index
+        }))
+      }]);
       setCurrentModel({
         name: '',
         description: '',
@@ -99,22 +111,97 @@ const CreateProjectModal = ({ isOpen, onClose }) => {
     setModels(updatedModels);
   };
 
+    // src/components/Dashboard/CreateProjectModal.jsx
   const handleSubmit = async () => {
-    // Here you would make the API call to create the project
     try {
-      const projectPayload = {
-        ...projectData,
-        database_models: models
-      };
+      setLoading(true);
+      setError(null);
+
+      // First create the project
+      const projectResponse = await projectsAPI.createProject(projectData);
+      const projectId = projectResponse.id;
+
+      // Then create models and their fields
+      for (const model of models) {
+        const modelData = {
+          name: model.name,
+          description: model.description,
+          display_field: model.display_field || 'id', // Default to 'id' if empty
+          order: models.indexOf(model)
+        };
+
+        try {
+          const modelResponse = await modelsAPI.createModel(projectId, modelData);
+          const modelId = modelResponse.id;
+
+          // Create fields for this model
+          for (const field of model.fields) {
+            const fieldData = {
+              name: field.name,
+              field_type: field.field_type,
+              max_length: field.max_length || null,
+              null: field.null || false,
+              blank: field.blank || false,
+              unique: field.unique || false,
+              default_value: field.default_value || '',
+              help_text: field.help_text || '',
+              order: field.order || 0
+            };
+
+            // Remove null values
+            Object.keys(fieldData).forEach(key => {
+              if (fieldData[key] === null || fieldData[key] === undefined) {
+                delete fieldData[key];
+              }
+            });
+
+            await modelsAPI.createField(projectId, modelId, fieldData);
+          }
+        } catch (modelError) {
+          console.error(`Error creating model ${model.name}:`, modelError);
+          throw new Error(`Failed to create model: ${model.name}`);
+        }
+      }
+
+      onProjectCreated(projectResponse);
+      resetForm();
       
-      // TODO: Make API call to create project
-      console.log('Submitting project:', projectPayload);
-      
-      // Close modal on success
-      onClose();
-    } catch (error) {
-      console.error('Error creating project:', error);
+    } catch (err) {
+      console.error('Error creating project:', err);
+      const errorMessage = err.response?.data 
+        ? JSON.stringify(err.response.data)
+        : err.message || 'Failed to create project';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const resetForm = () => {
+    setCurrentStep(1);
+    setProjectData({
+      name: '',
+      description: '',
+      framework: 'django',
+      include_docker: false,
+      include_cors: true,
+      include_rate_limiting: false,
+      include_logging: false,
+      include_env_example: true,
+    });
+    setModels([]);
+    setCurrentModel({
+      name: '',
+      description: '',
+      display_field: '',
+      fields: []
+    });
+    setError(null);
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
   };
 
   return (
@@ -151,6 +238,13 @@ const CreateProjectModal = ({ isOpen, onClose }) => {
               </div>
             </div>
           </div>
+
+          {/* Error Display */}
+          {error && (
+            <div className="mb-6 bg-red-500/20 border border-red-500/50 rounded-lg p-4">
+              <p className="text-red-400">{error}</p>
+            </div>
+          )}
 
           {/* Form Content */}
           <div className="space-y-10">
@@ -508,8 +602,9 @@ const CreateProjectModal = ({ isOpen, onClose }) => {
           {/* Footer Buttons */}
           <div className="flex justify-between items-center pt-8 mt-8 border-t border-white/10">
             <button 
-              onClick={onClose}
-              className="flex items-center justify-center rounded-lg h-12 px-6 bg-white/10 text-white text-sm font-bold shadow-neumorphic-outset hover:bg-white/20 transition-colors"
+              onClick={handleClose}
+              disabled={loading}
+              className="flex items-center justify-center rounded-lg h-12 px-6 bg-white/10 text-white text-sm font-bold shadow-neumorphic-outset hover:bg-white/20 transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
@@ -517,7 +612,8 @@ const CreateProjectModal = ({ isOpen, onClose }) => {
               {currentStep > 1 && (
                 <button 
                   onClick={() => setCurrentStep(currentStep - 1)}
-                  className="flex items-center justify-center rounded-lg h-12 px-6 bg-white/10 text-white text-sm font-bold shadow-neumorphic-outset hover:bg-white/20 transition-colors gap-2"
+                  disabled={loading}
+                  className="flex items-center justify-center rounded-lg h-12 px-6 bg-white/10 text-white text-sm font-bold shadow-neumorphic-outset hover:bg-white/20 transition-colors gap-2 disabled:opacity-50"
                 >
                   <span className="material-symbols-outlined">arrow_back</span>
                   <span>Previous</span>
@@ -531,16 +627,22 @@ const CreateProjectModal = ({ isOpen, onClose }) => {
                     handleSubmit();
                   }
                 }}
-                disabled={currentStep === 1 && !projectData.name.trim()}
+                disabled={(currentStep === 1 && !projectData.name.trim()) || loading}
                 className="flex items-center justify-center rounded-lg h-12 px-8 bg-primary text-white text-sm font-bold shadow-neumorphic-outset hover:bg-primary/90 transition-colors gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span>
-                  {currentStep === 4 
-                    ? 'Create Project' 
-                    : `Next: ${steps[currentStep]?.label}`
-                  }
-                </span>
-                {currentStep < 4 && <span className="material-symbols-outlined">arrow_forward</span>}
+                {loading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                ) : (
+                  <>
+                    <span>
+                      {currentStep === 4 
+                        ? 'Create Project' 
+                        : `Next: ${steps[currentStep]?.label}`
+                      }
+                    </span>
+                    {currentStep < 4 && <span className="material-symbols-outlined">arrow_forward</span>}
+                  </>
+                )}
               </button>
             </div>
           </div>

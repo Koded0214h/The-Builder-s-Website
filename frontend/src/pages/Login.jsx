@@ -1,8 +1,41 @@
-import { Link } from "react-router-dom";
+// src/pages/Login.jsx
+import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [formData, setFormData] = useState({
+    username: '',
+    password: ''
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const { login, error, setError } = useAuth();
+  const navigate = useNavigate();
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+    // Clear error when user starts typing
+    if (error) setError(null);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      await login(formData);
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Login error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="dark bg-background-dark font-sans text-[#E0E0E0] min-h-screen">
@@ -37,20 +70,30 @@ const Login = () => {
               Welcome back! Please enter your details.
             </p>
           </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3">
+              <p className="text-red-300 text-sm">{error}</p>
+            </div>
+          )}
           
-          <form className="space-y-6">
+          <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2" htmlFor="email">
-                Email Address
+              <label className="block text-sm font-medium text-gray-300 mb-2" htmlFor="username">
+                Username or Email
               </label>
               <input 
-                autoComplete="email"
-                className="neumorphism-inset flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary/50 border-none bg-transparent h-12 md:h-14 placeholder:text-gray-500 p-4 text-base font-normal leading-normal"
-                id="email"
-                name="email"
+                autoComplete="username"
+                className="neumorphism-inset flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg bg-[#2C2C2C] border border-[#4A4A4A] text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 h-12 md:h-14 p-4 text-base font-normal leading-normal"
+                id="username"
+                name="username"
                 placeholder="you@example.com"
                 required
-                type="email"
+                type="text"
+                value={formData.username}
+                onChange={handleChange}
+                disabled={isLoading}
               />
             </div>
             
@@ -66,12 +109,15 @@ const Login = () => {
               <div className="mt-2 relative">
                 <input 
                   autoComplete="current-password"
-                  className="neumorphism-inset flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary/50 border-none bg-transparent h-12 md:h-14 placeholder:text-gray-500 p-4 pr-12 text-base font-normal leading-normal"
+                  className="neumorphism-inset flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg bg-[#2C2C2C] border border-[#4A4A4A] text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 h-12 md:h-14 p-4 pr-12 text-base font-normal leading-normal"
                   id="password"
                   name="password"
                   placeholder="••••••••"
                   required
                   type={showPassword ? "text" : "password"}
+                  value={formData.password}
+                  onChange={handleChange}
+                  disabled={isLoading}
                 />
                 <button 
                   type="button"
@@ -87,10 +133,20 @@ const Login = () => {
             
             <div>
               <button 
-                className="flex w-full justify-center rounded-lg bg-primary px-3 py-3 md:py-4 text-base font-bold leading-6 text-white shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-all duration-300 ease-in-out"
+                className={`flex w-full justify-center rounded-lg bg-primary px-3 py-3 md:py-4 text-base font-bold leading-6 text-white shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-all duration-300 ease-in-out ${
+                  isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
                 type="submit"
+                disabled={isLoading}
               >
-                Log In
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Logging in...
+                  </div>
+                ) : (
+                  'Log In'
+                )}
               </button>
             </div>
           </form>
@@ -107,7 +163,10 @@ const Login = () => {
           </div>
           
           <div className="grid grid-cols-2 gap-3 md:gap-4">
-            <button className="social-button flex w-full items-center justify-center gap-2 md:gap-3 rounded-lg bg-white/10 px-3 py-3 text-white shadow-sm ring-1 ring-inset ring-white/20 hover:bg-white/20 transition-colors">
+            <button 
+              className="social-button flex w-full items-center justify-center gap-2 md:gap-3 rounded-lg bg-white/10 px-3 py-3 text-white shadow-sm ring-1 ring-inset ring-white/20 hover:bg-white/20 transition-colors"
+              disabled={isLoading}
+            >
               <svg className="h-4 w-4 md:h-5 md:w-5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -118,7 +177,10 @@ const Login = () => {
               <span className="text-xs md:text-sm font-semibold leading-6">Google</span>
             </button>
             
-            <button className="social-button flex w-full items-center justify-center gap-2 md:gap-3 rounded-lg bg-white/10 px-3 py-3 text-white shadow-sm ring-1 ring-inset ring-white/20 hover:bg-white/20 transition-colors">
+            <button 
+              className="social-button flex w-full items-center justify-center gap-2 md:gap-3 rounded-lg bg-white/10 px-3 py-3 text-white shadow-sm ring-1 ring-inset ring-white/20 hover:bg-white/20 transition-colors"
+              disabled={isLoading}
+            >
               <svg className="h-5 w-5 md:h-6 md:w-6" fill="currentColor" viewBox="0 0 24 24">
                 <path clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.165 6.839 9.489.5.092.682-.218.682-.483 0-.237-.009-.868-.014-1.703-2.782.604-3.369-1.342-3.369-1.342-.454-1.157-1.11-1.465-1.11-1.465-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.089 2.91.833.091-.647.35-1.086.636-1.336-2.22-.252-4.555-1.112-4.555-4.943 0-1.091.39-1.984 1.03-2.682-.103-.253-.446-1.27.098-2.646 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.82c.85.004 1.705.115 2.504.336 1.909-1.296 2.747-1.026 2.747-1.026.546 1.376.202 2.393.1 2.646.64.698 1.027 1.59 1.027 2.682 0 3.841-2.338 4.687-4.566 4.935.359.308.678.92.678 1.852 0 1.336-.012 2.415-.012 2.741 0 .267.18.577.688.482A10.001 10.001 0 0022 12c0-5.523-4.477-10-10-10z" fillRule="evenodd"/>
               </svg>

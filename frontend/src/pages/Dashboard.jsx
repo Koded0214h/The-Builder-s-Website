@@ -1,38 +1,44 @@
-import { useState } from 'react';
-import Header from "../components/Dashboard/Header";
-import ProjectCard from "../components/Dashboard/ProjectCard";
-import TemplateCard from "../components/Dashboard/TemplateCard";
-import CreateProjectModal from "../components/Dashboard/CreateProjectModal";
+// src/components/Dashboard/Dashboard.jsx
+import { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { projectsAPI } from '../services/api';
+import CreateProjectModal from '../components/Dashboard/CreateProjectModal';
+import Header from '../components/Dashboard/Header';
+import ProjectCard from '../components/Dashboard/ProjectCard';
+import TemplateCard from '../components/Dashboard/TemplateCard';
 
 const Dashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const { user } = useAuth();
 
-  const projects = [
-    {
-      id: 1,
-      name: "Project Alpha",
-      description: "Django | 12 Models | Last modified: 2 days ago",
-      image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDXkiw3PbkZ5YcuPABk8ZO-7RSTRrjrJX_1gKZZe1GmvQrH_qCT1a_PIzUVvukcJCyhZcj1FDyd50nJdqyL04eo3_lrDYMoJdTmoogAUwrF9rXMg7s1fyToGKumdvH8mcy-Si3DV9D_ivNSOZTSxv_pzRWFN2KMBrJp9ZkuIWafIKdNc91TcVv9nKKMrXV7aO6p19kRo2p49gWpMwZIFmBDYXWSIn9scLnYpNJFcWV07uAiDQU0QNsQcNi84ayp_yIeSrRUqbrAnJUI"
-    },
-    {
-      id: 2,
-      name: "Project Beta",
-      description: "Express.js | 8 Models | Last modified: 5 days ago",
-      image: "https://lh3.googleusercontent.com/aida-public/AB6AXuA1AlHup2JpZFzHXVUILld__V30bqVfr3b2YJdLS7aL1C2X4ofMF9ZEooHWVjibW0WvNQPetu0dSczNnGbVk9yaxGyuYY_B8esHgmRwGEM-_rioRFicTTmR5MYeahctRtiXNMRph2DMrSw60jbvGqSKgPWVydxP-act2epL9HGHrlQ55A9oEwq17to5cRCeBnXe-zV91VH0xDHTIrINwqula_eJeyovPqBXTxH_NgYDVsPzr5abWHyLkFp6HfIZGufV4x190sX-GqR6"
-    },
-    {
-      id: 3,
-      name: "Project Gamma",
-      description: "Django | 15 Models | Last modified: 1 week ago",
-      image: "https://lh3.googleusercontent.com/aida-public/AB6AXuCowDShaMKAHjRuFRViMrvWPlBZnOKlQt02icJXRMnZmajS0D22PJgiXp7Zo5Vcu0Wt7zlaAcmyHWP2NPBHPOjYdWYPnOXp_nj7-H_awqbKdRIS47VTDrO7VK2D4b37NoaLDyEUFJSLd042kiKpxo2ZZdnMZId5zgXfXbHliQMCP5rPWGi5TAGQLZfu9oZuA4nhPuKFHBjaDlVze_ICsOHEZ6VYCCWntGMVHphJfmOste3mOUO9WM8fgLS0LfC-TfNDVVbQw5iiqpO_"
-    },
-    {
-      id: 4,
-      name: "Project Delta",
-      description: "Express.js | 5 Models | Last modified: 2 weeks ago",
-      image: "https://lh3.googleusercontent.com/aida-public/AB6AXuCFpRZm8rkBLsH3SFVWxnxDJ-qR5VcLhTltokTCBbePHRklYF4EzsvJaQdseRTulpkcPdAYcA-UbBxADtKY7q_8E98qBCH1g37HjDXGR-8Xu-YYFU472B9OUTAjnD1wePkC1ZtRPnddx5mSJrPojC6PuJZK0NWdxq1CIgCAXH-PYQqsq58zK5l31QP0SiKbcx_6l18-1sqNVasrjcCB3_9hUFkO_ncbn_iayDmKGkAZRyyRfUdHV9E-50TEFx58GctFcxDd4-qyOZPG"
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  const fetchProjects = async () => {
+    try {
+      setLoading(true);
+      const response = await projectsAPI.getProjects();
+      setProjects(response.results || response); // Handle both list and paginated responses
+    } catch (err) {
+      console.error('Error fetching projects:', err);
+      setError('Failed to load projects');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  const handleProjectCreated = (newProject) => {
+    setProjects(prev => [newProject, ...prev]);
+    setIsModalOpen(false);
+  };
+
+  const handleProjectDeleted = (projectId) => {
+    setProjects(prev => prev.filter(project => project.id !== projectId));
+  };
 
   const templates = [
     {
@@ -58,6 +64,23 @@ const Dashboard = () => {
     }
   ];
 
+  if (loading) {
+    return (
+      <div className="relative flex h-auto min-h-screen w-full flex-col bg-[#1e1023] overflow-x-hidden pb-20 md:pb-0">
+        <div className="layout-container flex h-full grow flex-col">
+          <div className="px-4 md:px-6 lg:px-8 xl:px-40 flex flex-1 justify-center py-4 md:py-5">
+            <div className="layout-content-container flex flex-col max-w-[960px] flex-1 w-full">
+              <Header />
+              <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative flex h-auto min-h-screen w-full flex-col bg-[#1e1023] dark group/design-root overflow-x-hidden pb-20 md:pb-0">
       <div className="layout-container flex h-full grow flex-col">
@@ -78,11 +101,30 @@ const Dashboard = () => {
                   <span className="truncate">Create Project</span>
                 </button>
               </div>
+
+              {error && (
+                <div className="px-4">
+                  <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4">
+                    <p className="text-red-400">{error}</p>
+                  </div>
+                </div>
+              )}
               
               <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 p-2 md:p-4">
-                {projects.map(project => (
-                  <ProjectCard key={project.id} project={project} />
-                ))}
+                {projects.length > 0 ? (
+                  projects.map(project => (
+                    <ProjectCard 
+                      key={project.id} 
+                      project={project} 
+                      onDelete={handleProjectDeleted}
+                    />
+                  ))
+                ) : (
+                  <div className="col-span-full text-center py-12">
+                    <p className="text-gray-400 text-lg">No projects yet</p>
+                    <p className="text-gray-500 mt-2">Create your first project to get started</p>
+                  </div>
+                )}
               </div>
               
               {/* Templates Section */}
@@ -106,7 +148,8 @@ const Dashboard = () => {
       {/* Create Project Modal */}
       <CreateProjectModal 
         isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+        onClose={() => setIsModalOpen(false)}
+        onProjectCreated={handleProjectCreated}
       />
     </div>
   );
