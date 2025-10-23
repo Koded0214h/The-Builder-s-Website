@@ -3,6 +3,7 @@ import LandingPage from './pages/Landing';
 import Signup from './pages/Signup';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import ProjectDashboard from './pages/ProjectDashboard';
 
 function App() {
 
@@ -13,6 +14,7 @@ function App() {
         <Route path='/register' element={<Signup />} />
         <Route path='/login' element={<Login />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/projects/:projectId" element={<ProjectDashboard />} />
       </Routes>
     </BrowserRouter>
   )

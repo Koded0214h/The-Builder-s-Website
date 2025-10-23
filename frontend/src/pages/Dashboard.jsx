@@ -1,9 +1,13 @@
+import { useState } from 'react';
 import Header from "../components/Dashboard/Header";
 import BottomNav from "../components/Dashboard/BottomNav";
 import ProjectCard from "../components/Dashboard/ProjectCard";
 import TemplateCard from "../components/Dashboard/TemplateCard";
+import CreateProjectModal from "../components/Dashboard/CreateProjectModal";
 
 const Dashboard = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   const projects = [
     {
       id: 1,
@@ -68,7 +72,10 @@ const Dashboard = () => {
                 <h1 className="text-white text-2xl sm:text-3xl md:text-4xl font-black leading-tight tracking-[-0.033em]">
                   My Projects
                 </h1>
-                <button className="flex w-full sm:w-auto min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 sm:h-12 px-4 sm:px-6 bg-primary text-white text-sm sm:text-base font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors">
+                <button 
+                  onClick={() => setIsModalOpen(true)}
+                  className="flex w-full sm:w-auto min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 sm:h-12 px-4 sm:px-6 bg-primary text-white text-sm sm:text-base font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors"
+                >
                   <span className="truncate">Create Project</span>
                 </button>
               </div>
@@ -98,6 +105,12 @@ const Dashboard = () => {
       </div>
       
       <BottomNav />
+
+      {/* Create Project Modal */}
+      <CreateProjectModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+      />
     </div>
   );
 };

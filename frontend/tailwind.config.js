@@ -14,6 +14,8 @@ export default {
         "primary-text": "#E0E0E0",
         "accent-start": "#8A2BE2",
         "accent-end": "#4169E1",
+        "sidebar-dark": "rgba(24, 24, 24, 0.5)",
+        "accent-dark": "#1A1A1A",
       },
       fontFamily: {
         "display": ["Poppins", "sans-serif"],
