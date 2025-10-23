@@ -10,7 +10,7 @@ const Sidebar = ({ onPublish, activeTab = 'dashboard' }) => {
     ];
   
     const bottomNavItems = [
-      { icon: 'settings', label: 'Settings', path: '#' },
+      { icon: 'settings', label: 'Settings', path: '/project/1/settings' },
     ];
   
     const handlePublish = () => {
