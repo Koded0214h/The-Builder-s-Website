@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import Header from "../components/Dashboard/Header";
-import BottomNav from "../components/Dashboard/BottomNav";
 import ProjectCard from "../components/Dashboard/ProjectCard";
 import TemplateCard from "../components/Dashboard/TemplateCard";
 import CreateProjectModal from "../components/Dashboard/CreateProjectModal";
@@ -103,8 +102,6 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
-      
-      <BottomNav />
 
       {/* Create Project Modal */}
       <CreateProjectModal 
