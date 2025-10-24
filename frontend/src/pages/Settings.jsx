@@ -1,6 +1,6 @@
-// Settings.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { projectsAPI } from '../services/api';
 import Sidebar from '../components/Projects/Sidebar';
 import Breadcrumbs from '../components/Projects/Breadcrumbs';
 import ProjectDetails from '../components/Settings/ProjectDetails';
@@ -9,20 +9,86 @@ import ApiConfiguration from '../components/Settings/ApiConfiguration';
 
 const Settings = () => {
   const { projectId } = useParams();
+  const [project, setProject] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   
   const [settings, setSettings] = useState({
-    projectName: 'E-commerce API',
+    projectName: '',
     version: '1.0.0',
-    description: 'An API for a modern e-commerce platform with product, user, and order management.',
-    backendFramework: 'Express.js',
-    database: 'MongoDB',
+    description: '',
+    backendFramework: 'django',
+    database: 'PostgreSQL',
     authentication: 'JWT',
     apiBasePath: '/api/v1',
     pagination: true,
-    corsAllowedOrigins: ''
+    corsAllowedOrigins: '',
+    include_docker: false,
+    include_cors: true,
+    include_rate_limiting: false,
+    include_logging: false,
+    include_env_example: true
   });
 
   const [originalSettings, setOriginalSettings] = useState({ ...settings });
+
+  // Fetch project data
+  useEffect(() => {
+    fetchProjectData();
+  }, [projectId]);
+
+  const fetchProjectData = async () => {
+    try {
+      setLoading(true);
+      const projectData = await projectsAPI.getProject(projectId);
+      setProject(projectData);
+      
+      // Transform backend data to frontend settings format
+      const transformedSettings = transformProjectToSettings(projectData);
+      setSettings(transformedSettings);
+      setOriginalSettings(transformedSettings);
+      
+    } catch (err) {
+      console.error('Error fetching project data:', err);
+      setError('Failed to load project settings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Transform backend project data to frontend settings format
+  const transformProjectToSettings = (projectData) => {
+    return {
+      projectName: projectData.name || '',
+      version: '1.0.0', // You might want to add version to your Project model
+      description: projectData.description || '',
+      backendFramework: projectData.framework || 'django',
+      database: 'PostgreSQL', // You might want to add database to your Project model
+      authentication: 'JWT', // You might want to add authentication to your Project model
+      apiBasePath: '/api/v1', // You might want to add apiBasePath to your Project model
+      pagination: true, // You might want to add pagination to your Project model
+      corsAllowedOrigins: '',
+      include_docker: projectData.include_docker || false,
+      include_cors: projectData.include_cors !== undefined ? projectData.include_cors : true,
+      include_rate_limiting: projectData.include_rate_limiting || false,
+      include_logging: projectData.include_logging || false,
+      include_env_example: projectData.include_env_example !== undefined ? projectData.include_env_example : true
+    };
+  };
+
+  // Transform frontend settings to backend project format
+  const transformSettingsToProject = (settingsData) => {
+    return {
+      name: settingsData.projectName,
+      description: settingsData.description,
+      framework: settingsData.backendFramework,
+      include_docker: settingsData.include_docker,
+      include_cors: settingsData.include_cors,
+      include_rate_limiting: settingsData.include_rate_limiting,
+      include_logging: settingsData.include_logging,
+      include_env_example: settingsData.include_env_example
+    };
+  };
 
   const handleSettingChange = (field, value) => {
     setSettings(prev => ({
@@ -31,11 +97,27 @@ const Settings = () => {
     }));
   };
 
-  const handleSaveChanges = () => {
-    // Simulate saving settings
-    console.log("Saving settings...", settings);
-    setOriginalSettings({ ...settings });
-    alert('Settings saved successfully!');
+  const handleSaveChanges = async () => {
+    try {
+      console.log("Saving settings...", settings);
+      
+      const projectData = transformSettingsToProject(settings);
+      await projectsAPI.updateProject(projectId, projectData);
+      
+      // Update local project state
+      setProject(prev => ({
+        ...prev,
+        ...projectData
+      }));
+      
+      setOriginalSettings({ ...settings });
+      alert('Settings saved successfully!');
+      
+    } catch (err) {
+      console.error('Error saving settings:', err);
+      setError(`Failed to save settings: ${err.response?.data ? JSON.stringify(err.response.data) : err.message}`);
+      alert('Failed to save settings. Please try again.');
+    }
   };
 
   const handleResetToDefaults = () => {
@@ -43,12 +125,17 @@ const Settings = () => {
       projectName: 'New Project',
       version: '1.0.0',
       description: '',
-      backendFramework: 'Django',
+      backendFramework: 'django',
       database: 'PostgreSQL',
       authentication: 'JWT',
       apiBasePath: '/api/v1',
       pagination: true,
-      corsAllowedOrigins: ''
+      corsAllowedOrigins: '',
+      include_docker: false,
+      include_cors: true,
+      include_rate_limiting: false,
+      include_logging: false,
+      include_env_example: true
     };
     
     setSettings(defaults);
@@ -80,7 +167,14 @@ AUTHENTICATION = "${settings.authentication}"
 # API Configuration
 API_BASE_PATH = "${settings.apiBasePath}"
 PAGINATION = ${settings.pagination}
-CORS_ALLOWED_ORIGINS = "${settings.corsAllowedOrigins}"`;
+CORS_ALLOWED_ORIGINS = "${settings.corsAllowedOrigins}"
+
+# Boilerplate Options
+INCLUDE_DOCKER = ${settings.include_docker}
+INCLUDE_CORS = ${settings.include_cors}
+INCLUDE_RATE_LIMITING = ${settings.include_rate_limiting}
+INCLUDE_LOGGING = ${settings.include_logging}
+INCLUDE_ENV_EXAMPLE = ${settings.include_env_example}`;
   };
 
   const downloadCode = (content, filename) => {
@@ -96,6 +190,36 @@ CORS_ALLOWED_ORIGINS = "${settings.corsAllowedOrigins}"`;
   };
 
   const hasChanges = JSON.stringify(settings) !== JSON.stringify(originalSettings);
+
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full bg-background-dark font-body text-primary-text overflow-hidden">
+        <Sidebar activeTab="settings" />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-screen w-full bg-background-dark font-body text-primary-text overflow-hidden">
+        <Sidebar activeTab="settings" />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-400 text-xl mb-4">{error}</p>
+            <button 
+              onClick={fetchProjectData}
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-full bg-background-dark font-body text-primary-text overflow-hidden">

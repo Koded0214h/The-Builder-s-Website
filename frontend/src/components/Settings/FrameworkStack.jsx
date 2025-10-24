@@ -1,12 +1,9 @@
-// FrameworkStack.jsx
 import React from 'react';
 
 const FrameworkStack = ({ settings, onSettingChange }) => {
   const frameworkOptions = [
-    { value: 'Django', label: 'Django' },
-    { value: 'Express.js', label: 'Express.js' },
-    { value: 'Flask', label: 'Flask' },
-    { value: 'FastAPI', label: 'FastAPI' }
+    { value: 'django', label: 'Django + DRF' },
+    { value: 'express', label: 'Express.js + Sequelize' }
   ];
 
   const databaseOptions = [
@@ -33,7 +30,7 @@ const FrameworkStack = ({ settings, onSettingChange }) => {
           <p className="text-base font-medium leading-normal text-white">Backend Framework</p>
           <div className="relative">
             <select
-              className="appearance-none w-full rounded-lg bg-[#2C2C2C] border border-[#4A4A4A] h-14 p-4 text-base font-normal text-black shadow-neumorphic-inset focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all pr-10"
+              className="appearance-none w-full rounded-lg bg-[#2C2C2C] border border-[#4A4A4A] h-14 p-4 text-base font-normal text-white shadow-neumorphic-inset focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all pr-10"
               value={settings.backendFramework}
               onChange={(e) => onSettingChange('backendFramework', e.target.value)}
             >
@@ -54,7 +51,7 @@ const FrameworkStack = ({ settings, onSettingChange }) => {
           <p className="text-base font-medium leading-normal text-white">Database</p>
           <div className="relative">
             <select
-              className="appearance-none w-full rounded-lg bg-[#2C2C2C] border border-[#4A4A4A] h-14 p-4 text-base font-normal text-black shadow-neumorphic-inset focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all pr-10"
+              className="appearance-none w-full rounded-lg bg-[#2C2C2C] border border-[#4A4A4A] h-14 p-4 text-base font-normal text-white shadow-neumorphic-inset focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all pr-10"
               value={settings.database}
               onChange={(e) => onSettingChange('database', e.target.value)}
             >
@@ -75,7 +72,7 @@ const FrameworkStack = ({ settings, onSettingChange }) => {
           <p className="text-base font-medium leading-normal text-white">Authentication</p>
           <div className="relative">
             <select
-              className="appearance-none w-full rounded-lg bg-[#2C2C2C] border border-[#4A4A4A] h-14 p-4 text-base font-normal text-black shadow-neumorphic-inset focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all pr-10"
+              className="appearance-none w-full rounded-lg bg-[#2C2C2C] border border-[#4A4A4A] h-14 p-4 text-base font-normal text-white shadow-neumorphic-inset focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all pr-10"
               value={settings.authentication}
               onChange={(e) => onSettingChange('authentication', e.target.value)}
             >
