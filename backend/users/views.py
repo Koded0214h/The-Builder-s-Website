@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.core.mail import send_mail
+from django.http import HttpResponse
 from django.conf import settings
 import jwt
 from datetime import datetime, timedelta
@@ -161,3 +162,6 @@ def refresh_token_view(request):
             {'error': 'Invalid refresh token'}, 
             status=status.HTTP_401_UNAUTHORIZED
         )
+        
+def my_view(request):
+    return HttpResponse("<h1> Koded -- Rapid Sccaffolder </h1>")
