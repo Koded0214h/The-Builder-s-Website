@@ -131,6 +131,13 @@ export const projectsAPI = {
     const response = await api.delete(`/projects/${projectId}/`);
     return response.data;
   },
+
+  generate: async (projectId) => {
+    const response = await api.post(`/projects/${projectId}/generate/`, {}, {
+      responseType: 'blob' // Important for file downloads
+    });
+    return response.data;
+  },
 };
 
 // Models API calls

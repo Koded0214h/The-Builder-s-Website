@@ -1,4 +1,3 @@
-// BuildConfiguration.jsx
 import React from 'react';
 
 const BuildConfiguration = ({ config, onConfigChange }) => {
@@ -10,11 +9,11 @@ const BuildConfiguration = ({ config, onConfigChange }) => {
   ];
 
   return (
-    <div className="p-6 bg-gray-800/50 rounded-xl border border-gray-700 glassmorphic">
-      <h2 className="text-xl font-bold text-white mb-4">Build Configuration</h2>
+    <div className="glassmorphism rounded-xl p-6 border border-white/10">
+      <h2 className="text-xl font-bold text-white mb-4">Build Options</h2>
       <div className="space-y-4">
         {options.map(option => (
-          <div key={option.key} className="flex items-center justify-between">
+          <div key={option.key} className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
             <div className="flex-1">
               <label className="font-medium text-white text-sm cursor-pointer" htmlFor={option.key}>
                 {option.label}
@@ -29,7 +28,7 @@ const BuildConfiguration = ({ config, onConfigChange }) => {
                 className="sr-only peer"
                 id={option.key}
               />
-              <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+              <div className="w-11 h-6 bg-[#2C2C2C] border border-[#4A4A4A] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
             </label>
           </div>
         ))}

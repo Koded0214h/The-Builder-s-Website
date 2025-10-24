@@ -32,7 +32,7 @@ function App() {
             } 
           />
           <Route 
-            path="/publish" 
+            path="/project/:projectId/publish" 
             element={
               <ProtectedRoute>
                 <Publish />

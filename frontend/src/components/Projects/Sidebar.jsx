@@ -22,7 +22,8 @@ const Sidebar = ({ onPublish, activeTab = 'dashboard' }) => {
   ];
 
   const handlePublish = () => {
-    navigate("/publish");
+    // Pass projectId to the publish page
+    navigate(`/project/${projectId}/publish`);
   };
 
   const handleLogout = () => {
