@@ -182,3 +182,48 @@ class ViewField(models.Model):
     
     def __str__(self):
         return f"{self.view.name}.{self.model_field.name}"
+    
+    
+# In your models.py, add the URL model
+class URLRoute(models.Model):
+    HTTP_METHOD_CHOICES = [
+        ('GET', 'GET'),
+        ('POST', 'POST'),
+        ('PUT', 'PUT'),
+        ('PATCH', 'PATCH'),
+        ('DELETE', 'DELETE'),
+        ('OPTIONS', 'OPTIONS'),
+        ('HEAD', 'HEAD'),
+    ]
+    
+    PERMISSION_CHOICES = [
+        ('Public', 'Public'),
+        ('Authenticated', 'Authenticated'),
+        ('Admin Only', 'Admin Only'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='url_routes')
+    path = models.CharField(max_length=500)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    http_method = models.CharField(max_length=10, choices=HTTP_METHOD_CHOICES, default='GET')
+    permission_level = models.CharField(max_length=20, choices=PERMISSION_CHOICES, default='Public')
+    
+    # Associated view (optional - can link to a View model)
+    associated_view = models.CharField(max_length=255, blank=True)
+    
+    # Advanced options
+    namespace = models.CharField(max_length=100, blank=True)
+    custom_regex = models.CharField(max_length=200, blank=True)
+    is_selected = models.BooleanField(default=False)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['path', 'http_method']
+        unique_together = ['project', 'path', 'http_method']
+    
+    def __str__(self):
+        return f"{self.http_method} {self.path} - {self.name}"

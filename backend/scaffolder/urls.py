@@ -9,6 +9,7 @@ router.register(r'projects', views.ProjectViewSet, basename='project')
 project_router = DefaultRouter()
 project_router.register(r'models', views.DatabaseModelViewSet, basename='model')
 project_router.register(r'relationships', views.RelationshipViewSet, basename='relationship')
+project_router.register(r'urls', views.URLRouteViewSet, basename='url')  
 
 # Nested router for model fields
 model_router = DefaultRouter()

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { projectsAPI, modelsAPI, viewsAPI } from '../services/api';
+import { projectsAPI, modelsAPI, viewsAPI, urlsAPI } from '../services/api'; // Add urlsAPI import
 import Sidebar from '../components/Projects/Sidebar';
 import Breadcrumbs from '../components/Projects/Breadcrumbs';
 import ViewConfiguration from '../components/Views/ViewConfiguration';
@@ -13,6 +13,7 @@ const Views = () => {
   const [project, setProject] = useState(null);
   const [models, setModels] = useState([]);
   const [views, setViews] = useState([]);
+  const [routes, setRoutes] = useState([]); // Add routes state
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -21,9 +22,7 @@ const Views = () => {
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [showMobileViewsList, setShowMobileViewsList] = useState(false);
 
-  
-
-  // Fetch project, models, and views data
+  // Fetch project, models, views, and routes data
   useEffect(() => {
     fetchProjectData();
   }, [projectId]);
@@ -45,6 +44,16 @@ const Views = () => {
       const transformedViews = transformViewsData(viewsData.results || viewsData);
       setViews(transformedViews);
       
+      // Fetch routes for endpoint preview
+      try {
+        const routesData = await urlsAPI.getUrls(projectId);
+        const transformedRoutes = transformRoutesData(routesData.results || routesData);
+        setRoutes(transformedRoutes);
+      } catch (routesError) {
+        console.warn('Could not fetch routes:', routesError);
+        setRoutes([]); // Set empty array if routes endpoint doesn't exist yet
+      }
+      
       // Set initial selected view
       if (transformedViews.length > 0) {
         setSelectedView(transformedViews[0]);
@@ -58,7 +67,7 @@ const Views = () => {
     }
   };
 
-  // Transform backend data to frontend format
+  // Transform backend data to frontend format for views
   const transformViewsData = (backendViews) => {
     return backendViews.map(view => ({
       id: view.id,
@@ -77,6 +86,24 @@ const Views = () => {
       description: view.description || '',
       created_at: view.created_at,
       updated_at: view.updated_at
+    }));
+  };
+
+  // Transform routes data to frontend format
+  const transformRoutesData = (backendRoutes) => {
+    return backendRoutes.map(route => ({
+      id: route.id,
+      path: route.path,
+      name: route.name,
+      description: route.description || '',
+      permission: route.permission_level || 'Public',
+      view: route.associated_view || '',
+      namespace: route.namespace || '',
+      regex: route.custom_regex || '',
+      http_method: route.http_method || 'GET',
+      is_selected: route.is_selected || false,
+      created_at: route.created_at,
+      updated_at: route.updated_at
     }));
   };
 
@@ -160,57 +187,57 @@ const Views = () => {
     }
   };
 
-    const handleUpdateView = async (updatedView) => {
-      try {
-        console.log('Updating view:', updatedView);
-        
-        const backendData = transformToBackendFormat(updatedView);
-        const response = await viewsAPI.updateView(projectId, updatedView.id, backendData);
-        
-        // Update local state instead of refetching
-        setViews(prevViews => 
-          prevViews.map(view => 
-            view.id === updatedView.id ? updatedView : view
-          )
-        );
-        
-        // Update selected view if it's the one being edited
-        if (selectedView?.id === updatedView.id) {
-          setSelectedView(updatedView);
-        }
-        
-        setIsCreatingNew(false);
-        
-        console.log('View updated successfully');
-        
-      } catch (err) {
-        console.error('Error updating view:', err);
-        setError(`Failed to update view: ${err.response?.data ? JSON.stringify(err.response.data) : err.message}`);
-        throw err;
+  const handleUpdateView = async (updatedView) => {
+    try {
+      console.log('Updating view:', updatedView);
+      
+      const backendData = transformToBackendFormat(updatedView);
+      const response = await viewsAPI.updateView(projectId, updatedView.id, backendData);
+      
+      // Update local state instead of refetching
+      setViews(prevViews => 
+        prevViews.map(view => 
+          view.id === updatedView.id ? updatedView : view
+        )
+      );
+      
+      // Update selected view if it's the one being edited
+      if (selectedView?.id === updatedView.id) {
+        setSelectedView(updatedView);
       }
-    };    
+      
+      setIsCreatingNew(false);
+      
+      console.log('View updated successfully');
+      
+    } catch (err) {
+      console.error('Error updating view:', err);
+      setError(`Failed to update view: ${err.response?.data ? JSON.stringify(err.response.data) : err.message}`);
+      throw err;
+    }
+  };    
 
-    const handleDuplicateView = async (viewId) => {
-      try {
-        const viewToDuplicate = views.find(view => view.id === viewId);
-        if (viewToDuplicate) {
-          const duplicatedViewData = {
-            ...transformToBackendFormat(viewToDuplicate),
-            name: `${viewToDuplicate.name}_Copy`
-          };
-          
-          const duplicatedView = await viewsAPI.createView(projectId, duplicatedViewData);
-          console.log('View duplicated:', duplicatedView);
-          
-          // Transform and add to local state
-          const transformedView = transformViewsData([duplicatedView])[0];
-          setViews(prevViews => [...prevViews, transformedView]);
-        }
-      } catch (err) {
-        console.error('Error duplicating view:', err);
-        setError(`Failed to duplicate view: ${err.response?.data ? JSON.stringify(err.response.data) : err.message}`);
+  const handleDuplicateView = async (viewId) => {
+    try {
+      const viewToDuplicate = views.find(view => view.id === viewId);
+      if (viewToDuplicate) {
+        const duplicatedViewData = {
+          ...transformToBackendFormat(viewToDuplicate),
+          name: `${viewToDuplicate.name}_Copy`
+        };
+        
+        const duplicatedView = await viewsAPI.createView(projectId, duplicatedViewData);
+        console.log('View duplicated:', duplicatedView);
+        
+        // Transform and add to local state
+        const transformedView = transformViewsData([duplicatedView])[0];
+        setViews(prevViews => [...prevViews, transformedView]);
       }
-    };
+    } catch (err) {
+      console.error('Error duplicating view:', err);
+      setError(`Failed to duplicate view: ${err.response?.data ? JSON.stringify(err.response.data) : err.message}`);
+    }
+  };
 
   const handlePublish = () => {
     // Simulate publishing
@@ -383,10 +410,12 @@ const Views = () => {
                 <ApiEndpointPreview 
                   view={selectedView}
                   project={project}
+                  routes={routes} // Now routes is defined
                 />
                 <ApiTestConsole 
                   view={selectedView}
                   project={project}
+                  routes={routes}
                 />
               </div>
             ) : (

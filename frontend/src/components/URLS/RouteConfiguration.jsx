@@ -1,7 +1,6 @@
-// RouteConfiguration.jsx
 import React, { useState, useEffect } from 'react';
 
-const RouteConfiguration = ({ route, onUpdateRoute, onSaveChanges, isNew }) => {
+const RouteConfiguration = ({ route, onUpdateRoute, onSaveChanges, isNew, availableViews, hasUnsavedChanges }) => {
   const [localRoute, setLocalRoute] = useState(route);
   const [activeTab, setActiveTab] = useState('path');
 
@@ -22,25 +21,30 @@ const RouteConfiguration = ({ route, onUpdateRoute, onSaveChanges, isNew }) => {
   ];
 
   return (
-    <div className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto">
+    <div className="flex-1 p-6 flex flex-col gap-6 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-shrink-0">
         <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12 shadow-neumorphic-in bg-primary/20 flex items-center justify-center">
           <span className="material-symbols-outlined text-primary text-2xl">route</span>
         </div>
-        <div>
-          <h1 className="text-white text-lg font-medium leading-normal">Route Configuration</h1>
-          <p className="text-text-light/70 text-sm font-normal leading-normal">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-white text-lg font-medium leading-normal truncate">Route Configuration</h1>
+          <p className="text-text-light/70 text-sm font-normal leading-normal truncate">
             {localRoute.path}
           </p>
-          {isNew && (
-            <span className="text-xs bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded mt-1 inline-block">New</span>
-          )}
+          <div className="flex gap-2 mt-1">
+            {isNew && (
+              <span className="text-xs bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded">New</span>
+            )}
+            {hasUnsavedChanges && (
+              <span className="text-xs bg-orange-500/20 text-orange-300 px-2 py-1 rounded">Unsaved Changes</span>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex flex-col gap-2">
+      <nav className="flex flex-col gap-2 flex-shrink-0">
         {navigationItems.map(item => (
           <button
             key={item.id}
@@ -66,11 +70,11 @@ const RouteConfiguration = ({ route, onUpdateRoute, onSaveChanges, isNew }) => {
       </nav>
 
       {/* Configuration Form */}
-      <div className="space-y-4">
+      <div className="space-y-4 overflow-y-auto flex-1">
         <div>
           <label className="text-text-light/80 text-sm font-medium mb-2 block">Path</label>
           <input
-            className="w-full bg-[#2C2C2C] border border-[#4A4A4A] rounded-lg px-3 py-2 text-black placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
+            className="w-full bg-[#2C2C2C] border border-[#4A4A4A] rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
             value={localRoute.path}
             onChange={(e) => handleFieldChange('path', e.target.value)}
             placeholder="/api/example/"
@@ -79,18 +83,24 @@ const RouteConfiguration = ({ route, onUpdateRoute, onSaveChanges, isNew }) => {
 
         <div>
           <label className="text-text-light/80 text-sm font-medium mb-2 block">View/Controller</label>
-          <input
-            className="w-full bg-[#2C2C2C] border border-[#4A4A4A] rounded-lg px-3 py-2 text-black placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
+          <select
+            className="w-full bg-[#2C2C2C] border border-[#4A4A4A] rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
             value={localRoute.view}
             onChange={(e) => handleFieldChange('view', e.target.value)}
-            placeholder="ViewName"
-          />
+          >
+            <option value="" className="text-black">Select a view</option>
+            {availableViews?.map(view => (
+              <option key={view.id} value={view.name} className="text-black">
+                {view.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>
           <label className="text-text-light/80 text-sm font-medium mb-2 block">Route Name</label>
           <input
-            className="w-full bg-[#2C2C2C] border border-[#4A4A4A] rounded-lg px-3 py-2 text-black placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
+            className="w-full bg-[#2C2C2C] border border-[#4A4A4A] rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
             value={localRoute.name}
             onChange={(e) => handleFieldChange('name', e.target.value)}
             placeholder="route_name"
@@ -100,7 +110,7 @@ const RouteConfiguration = ({ route, onUpdateRoute, onSaveChanges, isNew }) => {
         <div>
           <label className="text-text-light/80 text-sm font-medium mb-2 block">Description</label>
           <textarea
-            className="w-full bg-[#2C2C2C] border border-[#4A4A4A] rounded-lg px-3 py-2 text-black placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all resize-none"
+            className="w-full bg-[#2C2C2C] border border-[#4A4A4A] rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all resize-none"
             rows="3"
             value={localRoute.description}
             onChange={(e) => handleFieldChange('description', e.target.value)}
@@ -111,7 +121,7 @@ const RouteConfiguration = ({ route, onUpdateRoute, onSaveChanges, isNew }) => {
         <div>
           <label className="text-text-light/80 text-sm font-medium mb-2 block">Permission Level</label>
           <select
-            className="w-full bg-[#2C2C2C] border border-[#4A4A4A] rounded-lg px-3 py-2 text-black focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
+            className="w-full bg-[#2C2C2C] border border-[#4A4A4A] rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
             value={localRoute.permission}
             onChange={(e) => handleFieldChange('permission', e.target.value)}
           >
@@ -120,21 +130,30 @@ const RouteConfiguration = ({ route, onUpdateRoute, onSaveChanges, isNew }) => {
             <option value="Admin Only" className="text-black">Admin Only</option>
           </select>
         </div>
+
+        {/* Advanced Settings */}
+        <AdvancedSettings 
+          route={localRoute}
+          onFieldChange={handleFieldChange}
+        />
       </div>
 
-      {/* Advanced Settings */}
-      <AdvancedSettings 
-        route={localRoute}
-        onFieldChange={handleFieldChange}
-      />
-
       {/* Save Button */}
-      <button
-        onClick={onSaveChanges}
-        className="w-full flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-4 bg-primary text-background-dark text-base font-bold leading-normal tracking-[0.015em] shadow-neumorphic-out hover:shadow-neumorphic-in transition-shadow mt-auto"
-      >
-        <span className="truncate">{isNew ? 'Create Route' : 'Save Changes'}</span>
-      </button>
+      <div className="flex-shrink-0">
+        <button
+          onClick={onSaveChanges}
+          disabled={!hasUnsavedChanges}
+          className={`w-full flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-4 text-base font-bold leading-normal tracking-[0.015em] shadow-neumorphic-out hover:shadow-neumorphic-in transition-shadow ${
+            hasUnsavedChanges 
+              ? 'bg-primary text-background-dark' 
+              : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+          }`}
+        >
+          <span className="truncate">
+            {isNew ? 'Create Route' : 'Save Changes'}
+          </span>
+        </button>
+      </div>
     </div>
   );
 };
@@ -143,7 +162,7 @@ const AdvancedSettings = ({ route, onFieldChange }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <details className="flex flex-col rounded-lg bg-white/10 group" open={isOpen}>
+    <details className="flex flex-col rounded-lg bg-white/10 group">
       <summary 
         className="flex cursor-pointer items-center justify-between gap-6 p-3 list-none"
         onClick={(e) => {
@@ -164,7 +183,7 @@ const AdvancedSettings = ({ route, onFieldChange }) => {
           <div>
             <label className="text-text-light/80 text-sm font-medium mb-2 block">Namespace</label>
             <input
-              className="w-full bg-[#2C2C2C] border border-[#4A4A4A] rounded-lg px-3 py-2 text-black placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
+              className="w-full bg-[#2C2C2C] border border-[#4A4A4A] rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
               value={route.namespace}
               onChange={(e) => onFieldChange('namespace', e.target.value)}
               placeholder="e.g., v1"
@@ -173,7 +192,7 @@ const AdvancedSettings = ({ route, onFieldChange }) => {
           <div>
             <label className="text-text-light/80 text-sm font-medium mb-2 block">Custom Regex</label>
             <input
-              className="w-full bg-[#2C2C2C] border border-[#4A4A4A] rounded-lg px-3 py-2 text-black placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
+              className="w-full bg-[#2C2C2C] border border-[#4A4A4A] rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
               value={route.regex}
               onChange={(e) => onFieldChange('regex', e.target.value)}
               placeholder="e.g., [0-9]+"

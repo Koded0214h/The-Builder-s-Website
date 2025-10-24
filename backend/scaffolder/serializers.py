@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Project, DatabaseModel, ModelField, Relationship, GeneratedProject, View, ViewField
+from .models import Project, DatabaseModel, ModelField, Relationship, GeneratedProject, View, ViewField, URLRoute
 
 class ModelFieldSerializer(serializers.ModelSerializer):
     class Meta:
@@ -84,5 +84,16 @@ class ViewSerializer(serializers.ModelSerializer):
             'permissions', 'pagination_enabled', 'page_size', 
             'ordering_fields', 'search_fields', 'filter_fields',
             'included_fields', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ('id', 'created_at', 'updated_at')
+        
+# In your serializers.py, add the URL serializer
+class URLRouteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = URLRoute
+        fields = [
+            'id', 'path', 'name', 'description', 'http_method', 
+            'permission_level', 'associated_view', 'namespace', 
+            'custom_regex', 'is_selected', 'created_at', 'updated_at'
         ]
         read_only_fields = ('id', 'created_at', 'updated_at')

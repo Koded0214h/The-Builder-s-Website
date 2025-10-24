@@ -1,28 +1,65 @@
-// ApiTestConsole.jsx
 import React, { useState, useEffect } from 'react';
 
-const ApiTestConsole = ({ view, mockResponse }) => {
+const ApiTestConsole = ({ view, mockResponse, routes = [] }) => {
   const [requestMethod, setRequestMethod] = useState('GET');
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState(null);
   const [requestBody, setRequestBody] = useState('');
   const [requestParams, setRequestParams] = useState('');
 
+  // Find the route that matches this view
+  const findMatchingRoute = () => {
+    if (!routes || routes.length === 0) return null;
+    
+    // Try to find a route by view name
+    const routeByViewName = routes.find(route => 
+      route.view === view.name || route.associated_view === view.name
+    );
+    
+    if (routeByViewName) return routeByViewName;
+    
+    // Fallback: try to find by path pattern
+    const basePath = `/api/${view.model.toLowerCase()}${view.type === 'List' ? 's/' : 's/{id}/'}`;
+    const routeByPath = routes.find(route => {
+      const normalizedRoutePath = route.path.replace(/{(\w+)}/g, '{id}');
+      return normalizedRoutePath === basePath;
+    });
+    
+    return routeByPath || null;
+  };
+
+  const matchingRoute = findMatchingRoute();
+
   useEffect(() => {
     // Reset when view changes
-    setRequestMethod('GET');
+    setRequestMethod(matchingRoute?.http_method || 'GET');
     setResponse(null);
     setRequestBody('');
     setRequestParams('');
-  }, [view]);
+  }, [view, matchingRoute]);
 
   const getEndpointUrl = () => {
-    const base = `/api/${view.model.toLowerCase()}/`;
-    let url = base;
-    
-    if (view.type === 'Detail') {
-      url += '1/'; // Example ID
+    // Use the route path if available, otherwise generate default
+    if (matchingRoute) {
+      let url = matchingRoute.path;
+      
+      // Replace {id} with example ID for detail views
+      if (view.type === 'Detail') {
+        url = url.replace(/{(\w+)}/g, '1');
+      }
+      
+      // Add query params for list views
+      if (view.type === 'List' && requestParams) {
+        const separator = url.includes('?') ? '&' : '?';
+        url += `${separator}${requestParams}`;
+      }
+      
+      return url;
     }
+    
+    // Fallback to default generation
+    const base = `/api/${view.model.toLowerCase()}s/`;
+    let url = view.type === 'Detail' ? `${base}1/` : base;
     
     // Add query params for list views
     if (view.type === 'List' && requestParams) {
@@ -30,6 +67,17 @@ const ApiTestConsole = ({ view, mockResponse }) => {
     }
     
     return url;
+  };
+
+  const getHttpMethodOptions = () => {
+    if (matchingRoute?.http_method) {
+      // If we have a matching route, only show its HTTP method
+      return [matchingRoute.http_method];
+    }
+    
+    // Default methods based on view type
+    const baseMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+    return view.type === 'Detail' ? ['GET', 'PUT', 'PATCH', 'DELETE'] : ['GET', 'POST'];
   };
 
   const handleSendRequest = async () => {
@@ -112,7 +160,12 @@ const ApiTestConsole = ({ view, mockResponse }) => {
     let curl = `curl -X ${requestMethod} \\\n`;
     curl += `  "http://localhost:8000${getEndpointUrl()}" \\\n`;
     
-    if (view.permissions.includes('IsAuthenticated')) {
+    // Add authentication header if required
+    const permissionLevel = matchingRoute?.permission || 
+      (view.permissions.includes('IsAdminUser') ? 'Admin Only' :
+       view.permissions.includes('IsAuthenticated') ? 'Authenticated' : 'Public');
+    
+    if (permissionLevel !== 'Public') {
       curl += `  -H "Authorization: Bearer <your_token>" \\\n`;
     }
     
@@ -125,10 +178,43 @@ const ApiTestConsole = ({ view, mockResponse }) => {
     return curl;
   };
 
+  const getPermissionLevel = () => {
+    if (matchingRoute?.permission) {
+      return matchingRoute.permission;
+    }
+    
+    // Map view permissions to route permission levels
+    if (view.permissions.includes('IsAdminUser')) {
+      return 'Admin Only';
+    } else if (view.permissions.includes('IsAuthenticated')) {
+      return 'Authenticated';
+    } else {
+      return 'Public';
+    }
+  };
+
   return (
     <div className="lg:col-span-1 glassmorphism rounded-xl p-6 flex flex-col gap-6">
-      <h2 className="text-2xl font-bold text-white">API Test Console</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-white">API Test Console</h2>
+        {matchingRoute && (
+          <span className="text-xs bg-green-500/20 text-green-300 px-2 py-1 rounded">
+            Route Linked
+          </span>
+        )}
+      </div>
       
+      {/* Route Connection Info */}
+      {matchingRoute && (
+        <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+          <div className="flex items-center gap-2 text-sm">
+            <span className="material-symbols-outlined text-blue-400 text-sm">link</span>
+            <span className="text-blue-300">Testing route: </span>
+            <span className="text-blue-200 font-medium">{matchingRoute.name}</span>
+          </div>
+        </div>
+      )}
+
       {/* Method and URL */}
       <div className="space-y-3">
         <div className="flex items-center gap-3">
@@ -136,16 +222,33 @@ const ApiTestConsole = ({ view, mockResponse }) => {
             value={requestMethod}
             onChange={(e) => setRequestMethod(e.target.value)}
             className="flex-none w-24 rounded-lg h-10 px-3 text-sm focus:outline-none bg-[#2C2C2C] border border-[#4A4A4A] text-white focus:border-primary focus:ring-2 focus:ring-primary/30"
+            disabled={matchingRoute?.http_method} // Disable if route has fixed method
           >
-            <option value="GET" className="text-black">GET</option>
-            <option value="POST" className="text-black">POST</option>
-            <option value="PUT" className="text-black">PUT</option>
-            <option value="PATCH" className="text-black">PATCH</option>
-            <option value="DELETE" className="text-black">DELETE</option>
+            {getHttpMethodOptions().map(method => (
+              <option key={method} value={method} className="text-black">
+                {method}
+              </option>
+            ))}
           </select>
-          <div className="flex-1 font-mono text-sm text-gray-300 bg-[#121212] p-2 rounded border border-gray-600 truncate">
+          <div className="flex-1 font-mono text-sm text-gray-300 bg-[#121212] p-2 rounded border border-gray-600 break-all">
             {getEndpointUrl()}
           </div>
+        </div>
+
+        {/* Permission Badge */}
+        <div className="flex items-center justify-between">
+          <span className={`text-xs px-2 py-1 rounded ${
+            getPermissionLevel() === 'Admin Only' ? 'bg-red-500/20 text-red-300' :
+            getPermissionLevel() === 'Authenticated' ? 'bg-yellow-500/20 text-yellow-300' :
+            'bg-green-500/20 text-green-300'
+          }`}>
+            {getPermissionLevel()} Access
+          </span>
+          {matchingRoute?.http_method && (
+            <span className="text-xs text-gray-400">
+              Method fixed by route
+            </span>
+          )}
         </div>
 
         <button 
@@ -173,11 +276,14 @@ const ApiTestConsole = ({ view, mockResponse }) => {
           <h3 className="text-sm font-medium text-gray-300 mb-2">Query Parameters</h3>
           <input
             type="text"
-            placeholder="page=1&amp;search=john"
+            placeholder="page=1&amp;search=example&amp;ordering=-created_at"
             value={requestParams}
             onChange={(e) => setRequestParams(e.target.value)}
             className="w-full rounded-lg h-10 p-2 text-sm focus:outline-none font-mono bg-[#2C2C2C] border border-[#4A4A4A] text-white focus:border-primary focus:ring-2 focus:ring-primary/30"
           />
+          <p className="text-xs text-gray-400 mt-1">
+            Common: page, limit, search, ordering, filters
+          </p>
         </div>
       )}
 
@@ -186,7 +292,7 @@ const ApiTestConsole = ({ view, mockResponse }) => {
         <div>
           <h3 className="text-sm font-medium text-gray-300 mb-2">Request Body</h3>
           <textarea
-            placeholder="Enter JSON request body..."
+            placeholder={`Enter JSON request body...\nExample:\n{\n  "name": "Example",\n  "description": "Sample data"\n}`}
             value={requestBody}
             onChange={(e) => setRequestBody(e.target.value)}
             className="w-full rounded-lg h-24 p-3 text-sm focus:outline-none font-mono resize-none bg-[#2C2C2C] border border-[#4A4A4A] text-white focus:border-primary focus:ring-2 focus:ring-primary/30"
@@ -230,6 +336,11 @@ const ApiTestConsole = ({ view, mockResponse }) => {
             <div className="text-center py-8 text-gray-500">
               <span className="material-symbols-outlined text-4xl mb-2">api</span>
               <p className="text-sm">Click "Test Endpoint" to see the response</p>
+              {matchingRoute && (
+                <p className="text-xs text-gray-400 mt-2">
+                  Testing route: <strong>{matchingRoute.name}</strong>
+                </p>
+              )}
             </div>
           )}
         </div>

@@ -7,12 +7,12 @@ from django.shortcuts import get_object_or_404
 import zipfile
 import io
 
-from .models import Project, DatabaseModel, ModelField, Relationship, View, ViewField
+from .models import Project, DatabaseModel, ModelField, Relationship, View, ViewField, URLRoute
 from .serializers import (
     ProjectListSerializer, ProjectDetailSerializer, 
     DatabaseModelSerializer, ModelFieldSerializer, 
     RelationshipSerializer, GeneratedProjectSerializer,
-    ViewSerializer, ViewFieldSerializer
+    ViewSerializer, ViewFieldSerializer, URLRouteSerializer
 )
 from .permissions import IsOwnerOrReadOnly, IsProjectOwner
 from .code_generators import DjangoCodeGenerator, ExpressCodeGenerator
@@ -147,3 +147,16 @@ class ViewFieldViewSet(viewsets.ModelViewSet):
             project_id=self.kwargs['project_pk']
         )
         serializer.save(view=view)
+        
+        
+# In your views.py, add the URL viewset
+class URLRouteViewSet(viewsets.ModelViewSet):
+    serializer_class = URLRouteSerializer
+    permission_classes = [IsAuthenticated, IsProjectOwner]
+    
+    def get_queryset(self):
+        return URLRoute.objects.filter(project_id=self.kwargs['project_pk'])
+    
+    def perform_create(self, serializer):
+        project = get_object_or_404(Project, pk=self.kwargs['project_pk'], owner=self.request.user)
+        serializer.save(project=project)

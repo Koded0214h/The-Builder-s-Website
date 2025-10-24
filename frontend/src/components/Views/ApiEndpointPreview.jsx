@@ -1,14 +1,63 @@
-// ApiEndpointPreview.jsx
 import React from 'react';
 
-const ApiEndpointPreview = ({ view, mockResponse }) => {
+const ApiEndpointPreview = ({ view, mockResponse, routes = [] }) => {
+  // Find the route that matches this view
+  const findMatchingRoute = () => {
+    if (!routes || routes.length === 0) return null;
+    
+    // Try to find a route by view name
+    const routeByViewName = routes.find(route => 
+      route.view === view.name || route.associated_view === view.name
+    );
+    
+    if (routeByViewName) return routeByViewName;
+    
+    // Fallback: try to find by path pattern
+    const basePath = `/api/${view.model.toLowerCase()}${view.type === 'List' ? 's/' : 's/{id}/'}`;
+    const routeByPath = routes.find(route => {
+      const normalizedRoutePath = route.path.replace(/{(\w+)}/g, '{id}');
+      return normalizedRoutePath === basePath;
+    });
+    
+    return routeByPath || null;
+  };
+
+  const matchingRoute = findMatchingRoute();
+
   const getEndpointUrl = () => {
+    // Use the route path if available, otherwise generate default
+    if (matchingRoute) {
+      return matchingRoute.path;
+    }
+    
+    // Fallback to default generation
     const base = `/api/${view.model.toLowerCase()}s/`;
     return view.type === 'Detail' ? `${base}{id}/` : base;
   };
 
   const getHttpMethod = () => {
+    // Use the route HTTP method if available
+    if (matchingRoute?.http_method) {
+      return matchingRoute.http_method;
+    }
+    
+    // Default based on view type
     return view.type === 'Detail' ? 'GET' : 'GET';
+  };
+
+  const getPermissionLevel = () => {
+    if (matchingRoute?.permission) {
+      return matchingRoute.permission;
+    }
+    
+    // Map view permissions to route permission levels
+    if (view.permissions.includes('IsAdminUser')) {
+      return 'Admin Only';
+    } else if (view.permissions.includes('IsAuthenticated')) {
+      return 'Authenticated';
+    } else {
+      return 'Public';
+    }
   };
 
   const getPythonCode = () => {
@@ -103,7 +152,14 @@ const ApiEndpointPreview = ({ view, mockResponse }) => {
 
   return (
     <div className="lg:col-span-1 glassmorphism rounded-xl p-6 flex flex-col gap-6">
-      <h2 className="text-2xl font-bold text-white">API Endpoint Preview</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold text-white">API Endpoint Preview</h2>
+        {matchingRoute && (
+          <span className="text-xs bg-green-500/20 text-green-300 px-2 py-1 rounded">
+            Route Linked
+          </span>
+        )}
+      </div>
       
       {/* Dynamic Endpoint Card */}
       <div className="p-4 rounded-lg bg-[#121212] neumorphic-inset">
@@ -114,13 +170,50 @@ const ApiEndpointPreview = ({ view, mockResponse }) => {
           <span className="text-xs text-gray-400 bg-gray-700/50 px-2 py-1 rounded">
             {view.type === 'List' ? 'LIST' : 'DETAIL'}
           </span>
+          {matchingRoute && (
+            <span className="text-xs text-green-400 bg-green-400/20 px-2 py-1 rounded">
+              ROUTED
+            </span>
+          )}
         </div>
         <p className="font-mono text-sm text-gray-300 break-all">{getEndpointUrl()}</p>
         <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
-          <span>Permissions: {view.permissions.join(', ') || 'None'}</span>
+          <span>Permissions: {getPermissionLevel()}</span>
           <span>•</span>
           <span>Fields: {view.fields.length}</span>
+          {matchingRoute && (
+            <>
+              <span>•</span>
+              <span className="text-green-400">Route: {matchingRoute.name}</span>
+            </>
+          )}
         </div>
+        
+        {/* Route Information */}
+        {matchingRoute && (
+          <div className="mt-3 pt-3 border-t border-gray-700">
+            <div className="flex items-center gap-2 text-xs text-gray-400">
+              <span className="material-symbols-outlined text-sm text-green-400">link</span>
+              <span>Connected to route: </span>
+              <span className="text-green-300 font-medium">{matchingRoute.name}</span>
+            </div>
+            {matchingRoute.description && (
+              <p className="text-xs text-gray-500 mt-1">{matchingRoute.description}</p>
+            )}
+          </div>
+        )}
+        
+        {!matchingRoute && (
+          <div className="mt-3 pt-3 border-t border-gray-700">
+            <div className="flex items-center gap-2 text-xs text-yellow-400">
+              <span className="material-symbols-outlined text-sm">link_off</span>
+              <span>No route connected</span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Create a route in the URLs section to connect this view
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Dynamic Generated Code */}
@@ -148,6 +241,20 @@ const ApiEndpointPreview = ({ view, mockResponse }) => {
           </code></pre>
         </div>
       </div>
+      
+      {/* URL Configuration Info */}
+      {matchingRoute && (
+        <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="material-symbols-outlined text-blue-400 text-sm">info</span>
+            <h4 className="text-blue-300 text-sm font-semibold">URL Configuration</h4>
+          </div>
+          <p className="text-xs text-blue-200/80">
+            This view is connected to the <strong>{matchingRoute.name}</strong> route. 
+            The endpoint URL and permissions are inherited from the route configuration.
+          </p>
+        </div>
+      )}
     </div>
   );
 };
