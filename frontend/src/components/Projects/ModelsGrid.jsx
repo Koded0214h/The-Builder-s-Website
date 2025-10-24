@@ -1,14 +1,14 @@
 // src/components/Projects/ModelsGrid.jsx
 import ModelCard from './ModelCard';
 
-const ModelsGrid = ({ models, title = "Recent Models" }) => {
+const ModelsGrid = ({ models, title = "Recent Models", projectId }) => {
   return (
     <div>
       <h2 className="text-white text-2xl font-display font-bold tracking-tight mb-6">{title}</h2>
       {models.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {models.map((model) => (
-            <ModelCard key={model.id} model={model} />
+            <ModelCard key={model.id} model={model} projectId={projectId}/>
           ))}
         </div>
       ) : (

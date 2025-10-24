@@ -1,13 +1,14 @@
 import { Link } from "react-router-dom";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { useState } from "react";
 
 const Sidebar = ({ onPublish, activeTab = 'dashboard' }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { projectId } = useParams(); // Get projectId from URL params
+  const { projectId } = useParams();
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
-  // Use the actual projectId from URL instead of hardcoded '1'
   const mainNavItems = [
     { icon: 'dashboard', label: 'Dashboard', active: activeTab === 'dashboard', path: `/project/${projectId}` },
     { icon: 'database', label: 'Database', active: activeTab === 'database', path: `/project/${projectId}/database` },
@@ -48,10 +49,16 @@ const Sidebar = ({ onPublish, activeTab = 'dashboard' }) => {
   };
 
   return (
-    <aside className="w-64 flex-shrink-0 p-6 flex flex-col justify-between bg-[#1A1A1A] border-r border-gray-800 h-screen overflow-hidden">
+    <aside 
+      className={`flex-shrink-0 p-6 flex flex-col justify-between bg-[#1A1A1A] border-r border-gray-800 h-screen overflow-hidden transition-all duration-300 ${
+        isCollapsed ? 'w-20' : 'w-64'
+      }`}
+      onMouseEnter={() => setIsCollapsed(false)}
+      onMouseLeave={() => setIsCollapsed(true)}
+    >
       {/* Top Section - Fixed height */}
       <div className="flex-shrink-0">
-        <div className="flex items-center gap-3 mb-10">
+        <div className={`flex items-center gap-3 mb-10 ${isCollapsed ? 'justify-center' : ''}`}>
           <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 bg-primary/20 flex items-center justify-center">
             {user?.avatar ? (
               <img 
@@ -65,12 +72,14 @@ const Sidebar = ({ onPublish, activeTab = 'dashboard' }) => {
               </span>
             )}
           </div>
-          <div>
-            <h1 className="text-white text-lg font-display font-bold">Rapid Scaffolder</h1>
-            <p className="text-gray-400 text-sm">
-              {user?.profile?.subscription_tier === 'pro' ? 'Pro Plan' : 'Free Plan'}
-            </p>
-          </div>
+          {!isCollapsed && (
+            <div>
+              <h1 className="text-white text-lg font-display font-bold">Rapid Scaffolder</h1>
+              <p className="text-gray-400 text-sm">
+                {user?.profile?.subscription_tier === 'pro' ? 'Pro Plan' : 'Free Plan'}
+              </p>
+            </div>
+          )}
         </div>
         
         <nav className="flex flex-col gap-2">
@@ -78,26 +87,39 @@ const Sidebar = ({ onPublish, activeTab = 'dashboard' }) => {
             <Link
               key={index}
               to={item.path}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors flex-shrink-0 ${
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors flex-shrink-0 group ${
                 item.active 
                   ? 'bg-black/20 shadow-neumorphic-inset' 
                   : 'hover:bg-white/5'
-              }`}
+              } ${isCollapsed ? 'justify-center' : ''}`}
+              title={isCollapsed ? item.label : ''}
             >
               <span className={`material-symbols-outlined ${
                 item.active ? 'text-primary' : 'text-gray-400'
               }`}>
                 {item.icon}
               </span>
-              <p className={`font-medium ${
-                item.active ? 'text-primary' : 'text-primary-text'
-              }`}>
-                {item.label}
-              </p>
-              {item.label === 'Permissions' && (
-                <span className="text-xs bg-yellow-500/20 text-yellow-300 px-1.5 py-0.5 rounded ml-auto">
-                  SOON
-                </span>
+              {!isCollapsed && (
+                <>
+                  <p className={`font-medium ${
+                    item.active ? 'text-primary' : 'text-primary-text'
+                  }`}>
+                    {item.label}
+                  </p>
+                  {item.label === 'Permissions' && (
+                    <span className="text-xs bg-yellow-500/20 text-yellow-300 px-1.5 py-0.5 rounded ml-auto">
+                      SOON
+                    </span>
+                  )}
+                </>
+              )}
+              
+              {/* Tooltip for collapsed state */}
+              {isCollapsed && (
+                <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 whitespace-nowrap">
+                  {item.label}
+                  {item.label === 'Permissions' && ' (SOON)'}
+                </div>
               )}
             </Link>
           ))}
@@ -106,38 +128,50 @@ const Sidebar = ({ onPublish, activeTab = 'dashboard' }) => {
       
       {/* Bottom Section - Fixed height */}
       <div className="flex-shrink-0 space-y-3">
-        {/* User Info */}
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-white/5 mb-2">
-          <div className="bg-primary/20 rounded-full size-8 flex items-center justify-center">
-            {user?.avatar ? (
-              <img 
-                src={user.avatar} 
-                alt="User avatar" 
-                className="rounded-full w-full h-full object-cover"
-              />
-            ) : (
-              <span className="text-primary font-bold text-xs">
-                {getUserInitials()}
-              </span>
-            )}
+        {/* User Info - Only show when expanded */}
+        {!isCollapsed && (
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-white/5 mb-2">
+            <div className="bg-primary/20 rounded-full size-8 flex items-center justify-center">
+              {user?.avatar ? (
+                <img 
+                  src={user.avatar} 
+                  alt="User avatar" 
+                  className="rounded-full w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-primary font-bold text-xs">
+                  {getUserInitials()}
+                </span>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-sm font-medium truncate">
+                {getUserDisplayName()}
+              </p>
+              <p className="text-gray-400 text-xs truncate">
+                {user?.email || 'user@example.com'}
+              </p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-white text-sm font-medium truncate">
-              {getUserDisplayName()}
-            </p>
-            <p className="text-gray-400 text-xs truncate">
-              {user?.email || 'user@example.com'}
-            </p>
-          </div>
-        </div>
+        )}
 
         {/* Publish Button */}
         <button 
           onClick={handlePublish}
-          className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors shadow-neumorphic border border-primary/20 flex-shrink-0"
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors shadow-neumorphic border border-primary/20 flex-shrink-0 group ${
+            isCollapsed ? 'justify-center' : ''
+          }`}
+          title={isCollapsed ? "Publish" : ""}
         >
           <span className="material-symbols-outlined text-primary">publish</span>
-          <p className="text-primary font-medium">Publish</p>
+          {!isCollapsed && <p className="text-primary font-medium">Publish</p>}
+          
+          {/* Tooltip for collapsed state */}
+          {isCollapsed && (
+            <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+              Publish
+            </div>
+          )}
         </button>
 
         {/* Settings Link */}
@@ -145,32 +179,52 @@ const Sidebar = ({ onPublish, activeTab = 'dashboard' }) => {
           <Link
             key={index}
             to={item.path}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors flex-shrink-0 ${
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors flex-shrink-0 group ${
               activeTab === 'settings' 
                 ? 'bg-black/20 shadow-neumorphic-inset' 
                 : 'hover:bg-white/5'
-            }`}
+            } ${isCollapsed ? 'justify-center' : ''}`}
+            title={isCollapsed ? item.label : ''}
           >
             <span className={`material-symbols-outlined ${
               activeTab === 'settings' ? 'text-primary' : 'text-gray-400'
             }`}>
               {item.icon}
             </span>
-            <p className={`font-medium ${
-              activeTab === 'settings' ? 'text-primary' : 'text-primary-text'
-            }`}>
-              {item.label}
-            </p>
+            {!isCollapsed && (
+              <p className={`font-medium ${
+                activeTab === 'settings' ? 'text-primary' : 'text-primary-text'
+              }`}>
+                {item.label}
+              </p>
+            )}
+            
+            {/* Tooltip for collapsed state */}
+            {isCollapsed && (
+              <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                {item.label}
+              </div>
+            )}
           </Link>
         ))}
 
         {/* Logout Button */}
         <button 
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-red-500/10 transition-colors flex-shrink-0 text-gray-300 hover:text-red-300 border border-transparent hover:border-red-500/20"
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-red-500/10 transition-colors flex-shrink-0 text-gray-300 hover:text-red-300 border border-transparent hover:border-red-500/20 group ${
+            isCollapsed ? 'justify-center' : ''
+          }`}
+          title={isCollapsed ? "Logout" : ""}
         >
           <span className="material-symbols-outlined">logout</span>
-          <p className="font-medium">Logout</p>
+          {!isCollapsed && <p className="font-medium">Logout</p>}
+          
+          {/* Tooltip for collapsed state */}
+          {isCollapsed && (
+            <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+              Logout
+            </div>
+          )}
         </button>
       </div>
     </aside>

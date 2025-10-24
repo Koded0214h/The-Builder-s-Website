@@ -19,4 +19,8 @@ urlpatterns = [
     path('', include(router.urls)),  # ← CHANGED: Empty path
     path('projects/<uuid:project_pk>/', include(project_router.urls)),
     path('projects/<uuid:project_pk>/models/<uuid:model_pk>/', include(model_router.urls)),
+    path('projects/<uuid:project_pk>/views/', views.ViewViewSet.as_view({'get': 'list', 'post': 'create'}), name='view-list'),
+    path('projects/<uuid:project_pk>/views/<uuid:pk>/', views.ViewViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='view-detail'),
+    path('projects/<uuid:project_pk>/views/<uuid:view_pk>/fields/', views.ViewFieldViewSet.as_view({'get': 'list', 'post': 'create'}), name='viewfield-list'),
+    path('projects/<uuid:project_pk>/views/<uuid:view_pk>/fields/<uuid:pk>/', views.ViewFieldViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='viewfield-detail'),
 ]

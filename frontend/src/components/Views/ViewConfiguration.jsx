@@ -1,22 +1,80 @@
 // ViewConfiguration.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+
+const useDebounce = (callback, delay) => {
+  const timeoutRef = useRef(null);
+  
+  return useCallback((...args) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    timeoutRef.current = setTimeout(() => {
+      callback(...args);
+    }, delay);
+  }, [callback, delay]);
+};
 
 const ViewConfiguration = ({ view, onUpdateView, availableModels, isCreatingNew }) => {
   const [localView, setLocalView] = useState(view);
   const [availableFields, setAvailableFields] = useState([]);
+  const [selectedModel, setSelectedModel] = useState(null);
+
+  
+  const debouncedUpdate = useDebounce((updatedView) => {
+    onUpdateView(updatedView);
+  }, 500);
 
   useEffect(() => {
     setLocalView(view);
-    // Update available fields based on selected model
-    const model = availableModels.find(m => m.name === view.model);
-    setAvailableFields(model ? model.fields : []);
+    
+    // Find the selected model and set available fields
+    const model = availableModels.find(m => m.id === view.model);
+    setSelectedModel(model);
+    
+    if (model && model.fields) {
+      // Extract field names from the fields array
+      const fieldNames = model.fields.map(field => 
+        typeof field === 'string' ? field : field.name || field.field_name
+      );
+      setAvailableFields(fieldNames);
+    } else {
+      setAvailableFields([]);
+    }
+  }, [view, availableModels]);
+
+
+  useEffect(() => {
+    setLocalView(view);
+    
+    // Find the selected model and set available fields
+    const model = availableModels.find(m => m.id === view.model);
+    setSelectedModel(model);
+    
+    if (model && model.fields) {
+      // Extract field names from the fields array
+      const fieldNames = model.fields.map(field => 
+        typeof field === 'string' ? field : field.name || field.field_name
+      );
+      setAvailableFields(fieldNames);
+    } else {
+      setAvailableFields([]);
+    }
   }, [view, availableModels]);
 
   const handleFieldChange = (field, value) => {
     const updatedView = { ...localView, [field]: value };
     setLocalView(updatedView);
-    onUpdateView(updatedView);
+    
+    // Use debounced update for frequent changes
+    if (['name', 'fields', 'filters'].includes(field)) {
+      debouncedUpdate(updatedView);
+    } else {
+      // Immediate update for important changes
+      onUpdateView(updatedView);
+    }
   };
+
 
   const handlePermissionToggle = (permission) => {
     const permissions = localView.permissions.includes(permission)
@@ -50,9 +108,36 @@ const ViewConfiguration = ({ view, onUpdateView, availableModels, isCreatingNew 
     handleFieldChange('filters', newFilters);
   };
 
-  const handleModelChange = (modelName) => {
-    handleFieldChange('model', modelName);
-    // Reset fields when model changes
+  const handleModelChange = (modelId) => {
+    const selectedModel = availableModels.find(m => m.id === modelId);
+    if (selectedModel) {
+      setSelectedModel(selectedModel);
+      
+      // Extract field names from the selected model
+      const fieldNames = selectedModel.fields?.map(field => 
+        typeof field === 'string' ? field : field.name || field.field_name
+      ) || [];
+      
+      setAvailableFields(fieldNames);
+      
+      // Update the view with new model and reset fields
+      const updatedView = {
+        ...localView,
+        model: modelId,
+        fields: [], // Reset fields when model changes
+        filters: [] // Optionally reset filters too
+      };
+      
+      setLocalView(updatedView);
+      onUpdateView(updatedView);
+    }
+  };
+
+  const handleSelectAllFields = () => {
+    handleFieldChange('fields', [...availableFields]);
+  };
+
+  const handleClearAllFields = () => {
     handleFieldChange('fields', []);
   };
 
@@ -85,8 +170,11 @@ const ViewConfiguration = ({ view, onUpdateView, availableModels, isCreatingNew 
           value={localView.model}
           onChange={(e) => handleModelChange(e.target.value)}
         >
+          <option value="" className="text-black">Select a model</option>
           {availableModels.map(model => (
-            <option key={model.name} value={model.name} className="text-black">{model.name}</option>
+            <option key={model.id} value={model.id} className="text-black">
+              {model.name}
+            </option>
           ))}
         </select>
       </label>
@@ -138,7 +226,7 @@ const ViewConfiguration = ({ view, onUpdateView, availableModels, isCreatingNew 
         </div>
       </div>
 
-      {/* Pagination */}
+      {/* Pagination - Fixed to show for List views */}
       {localView.type === 'List' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -146,7 +234,7 @@ const ViewConfiguration = ({ view, onUpdateView, availableModels, isCreatingNew 
             <label className="relative inline-flex items-center cursor-pointer">
               <input 
                 type="checkbox" 
-                checked={localView.pagination}
+                checked={localView.pagination || false}
                 onChange={(e) => handleFieldChange('pagination', e.target.checked)}
                 className="sr-only peer" 
               />
@@ -159,7 +247,7 @@ const ViewConfiguration = ({ view, onUpdateView, availableModels, isCreatingNew 
               <p className="text-sm font-medium leading-normal pb-2 text-gray-300">Page Size</p>
               <select 
                 className="w-full rounded-lg h-12 px-3 text-sm focus:outline-none bg-[#2C2C2C] border border-[#4A4A4A] text-white focus:border-primary focus:ring-2 focus:ring-primary/30"
-                value={localView.pageSize}
+                value={localView.pageSize || 20}
                 onChange={(e) => handleFieldChange('pageSize', parseInt(e.target.value))}
               >
                 <option value={10} className="text-black">10 items</option>
@@ -176,28 +264,52 @@ const ViewConfiguration = ({ view, onUpdateView, availableModels, isCreatingNew 
       <div>
         <div className="flex items-center justify-between mb-2">
           <p className="text-sm font-medium text-gray-300">Fields to Include</p>
-          <span className="text-xs text-gray-400">{localView.fields.length} selected</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">{localView.fields?.length || 0} selected</span>
+            {availableFields.length > 0 && (
+              <>
+                <button 
+                  onClick={handleSelectAllFields}
+                  className="text-xs text-primary hover:text-primary/80 transition-colors"
+                >
+                  Select All
+                </button>
+                <button 
+                  onClick={handleClearAllFields}
+                  className="text-xs text-gray-400 hover:text-white transition-colors"
+                >
+                  Clear
+                </button>
+              </>
+            )}
+          </div>
         </div>
         <div className="p-3 rounded-lg neumorphic-inset space-y-2 max-h-40 overflow-y-auto">
-          {availableFields.map(field => (
-            <FieldChip 
-              key={field}
-              field={field}
-              selected={localView.fields.includes(field)}
-              onToggle={handleFieldToggle}
-            />
-          ))}
-          {availableFields.length === 0 && (
-            <p className="text-gray-400 text-sm text-center py-2">No fields available</p>
+          {availableFields.length > 0 ? (
+            availableFields.map(field => (
+              <FieldChip 
+                key={field}
+                field={field}
+                selected={localView.fields?.includes(field) || false}
+                onToggle={handleFieldToggle}
+              />
+            ))
+          ) : (
+            <p className="text-gray-400 text-sm text-center py-2">
+              {localView.model ? 'No fields available for this model' : 'Select a model to see fields'}
+            </p>
           )}
         </div>
       </div>
 
       {/* Filters */}
       <div>
-        <p className="text-sm font-medium leading-normal pb-2 text-gray-300">Filters</p>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-sm font-medium leading-normal text-gray-300">Filters</p>
+          <span className="text-xs text-gray-400">{localView.filters?.length || 0} active</span>
+        </div>
         <div className="space-y-3">
-          {localView.filters.map((filter, index) => (
+          {localView.filters?.map((filter, index) => (
             <FilterInput 
               key={index}
               value={filter}
@@ -227,9 +339,9 @@ const FieldChip = ({ field, selected, onToggle }) => (
     onClick={() => onToggle(field)}
   >
     {field}
-    <button className="ml-1 hover:text-primary transition-colors">
-      {selected ? '×' : '+'}
-    </button>
+    <span className="ml-1 transition-colors">
+      {selected ? '✓' : '+'}
+    </span>
   </span>
 );
 
@@ -242,7 +354,10 @@ const FilterInput = ({ value, onUpdate, onRemove }) => (
       onChange={(e) => onUpdate(e.target.value)}
       placeholder="field__lookup"
     />
-    <button onClick={onRemove} className="text-gray-400 hover:text-white transition-colors">
+    <button 
+      onClick={onRemove} 
+      className="text-gray-400 hover:text-white transition-colors flex-shrink-0"
+    >
       <span className="material-symbols-outlined text-sm">delete</span>
     </button>
   </div>

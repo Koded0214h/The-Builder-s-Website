@@ -125,3 +125,60 @@ class GeneratedProject(models.Model):
     
     def __str__(self):
         return f"{self.project.name} v{self.version}"
+    
+    
+# In your models.py, add View and related models
+class View(models.Model):
+    VIEW_TYPES = [
+        ('list', 'List View'),
+        ('detail', 'Detail View'),
+        ('create', 'Create View'),
+        ('update', 'Update View'),
+        ('destroy', 'Delete View'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='views')
+    name = models.CharField(max_length=255)
+    model = models.ForeignKey(DatabaseModel, on_delete=models.CASCADE, related_name='views')
+    view_type = models.CharField(max_length=20, choices=VIEW_TYPES, default='list')
+    description = models.TextField(blank=True)
+    
+    # Permissions
+    permissions = models.JSONField(default=list, blank=True)  # Store as list of permission strings
+    
+    # Pagination
+    pagination_enabled = models.BooleanField(default=True)
+    page_size = models.IntegerField(default=20)
+    
+    # Ordering
+    ordering_fields = models.JSONField(default=list, blank=True)
+    
+    # Search
+    search_fields = models.JSONField(default=list, blank=True)
+    
+    # Filtering
+    filter_fields = models.JSONField(default=list, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ['project', 'name']
+    
+    def __str__(self):
+        return f"{self.project.name}.{self.name}"
+
+class ViewField(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    view = models.ForeignKey(View, on_delete=models.CASCADE, related_name='included_fields')
+    model_field = models.ForeignKey(ModelField, on_delete=models.CASCADE)
+    order = models.IntegerField(default=0)
+    
+    class Meta:
+        ordering = ['order']
+        unique_together = ['view', 'model_field']
+    
+    def __str__(self):
+        return f"{self.view.name}.{self.model_field.name}"

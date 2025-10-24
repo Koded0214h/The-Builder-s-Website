@@ -17,7 +17,7 @@ const ApiTestConsole = ({ view, mockResponse }) => {
   }, [view]);
 
   const getEndpointUrl = () => {
-    const base = `/api/${view.model.toLowerCase()}s/`;
+    const base = `/api/${view.model.toLowerCase()}/`;
     let url = base;
     
     if (view.type === 'Detail') {

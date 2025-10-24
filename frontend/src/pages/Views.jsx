@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { projectsAPI, modelsAPI, viewsAPI } from '../services/api';
 import Sidebar from '../components/Projects/Sidebar';
 import Breadcrumbs from '../components/Projects/Breadcrumbs';
 import ViewConfiguration from '../components/Views/ViewConfiguration';
@@ -9,131 +10,207 @@ import ViewsList from '../components/Views/ViewsList';
 
 const Views = () => {
   const { projectId } = useParams();
+  const [project, setProject] = useState(null);
+  const [models, setModels] = useState([]);
+  const [views, setViews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isMobile, setIsMobile] = useState(false);
   
-  // Mock data for models and their fields
-  const availableModels = [
-    {
-      name: "User",
-      fields: ["id", "username", "email", "first_name", "last_name", "is_active", "date_joined", "last_login"]
-    },
-    {
-      name: "Product", 
-      fields: ["id", "name", "description", "price", "category", "in_stock", "created_at", "updated_at"]
-    },
-    {
-      name: "Order",
-      fields: ["id", "user", "products", "total_amount", "status", "created_at", "updated_at"]
-    }
-  ];
-
-  const [views, setViews] = useState([
-    {
-      id: 1,
-      name: "UserListView",
-      model: "User",
-      type: "List",
-      permissions: ["IsAuthenticated"],
-      pagination: true,
-      pageSize: 20,
-      fields: ["id", "username", "email", "date_joined"],
-      filters: ["username__icontains"],
-      searchFields: ["username", "email"],
-      ordering: ["-date_joined"]
-    },
-    {
-      id: 2,
-      name: "UserDetailView",
-      model: "User",
-      type: "Detail",
-      permissions: ["IsAuthenticated"],
-      pagination: false,
-      fields: ["id", "username", "email", "first_name", "last_name", "date_joined", "last_login"],
-      filters: [],
-      searchFields: [],
-      ordering: []
-    }
-  ]);
-
-  const [selectedView, setSelectedView] = useState(views[0]);
+  const [selectedView, setSelectedView] = useState(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [showMobileViewsList, setShowMobileViewsList] = useState(false);
 
-  // Mock API responses
-  const mockApiResponses = {
-    UserListView: {
-      count: 42,
-      next: "/api/users/?page=2",
-      previous: null,
-      results: [
-        { id: 1, username: "john_doe", email: "john@example.com", date_joined: "2023-01-15T10:30:00Z" },
-        { id: 2, username: "jane_smith", email: "jane@example.com", date_joined: "2023-02-20T14:45:00Z" },
-        { id: 3, username: "bob_wilson", email: "bob@example.com", date_joined: "2023-03-10T09:15:00Z" }
-      ]
-    },
-    UserDetailView: {
-      id: 1,
-      username: "john_doe",
-      email: "john@example.com",
-      first_name: "John",
-      last_name: "Doe",
-      date_joined: "2023-01-15T10:30:00Z",
-      last_login: "2023-12-01T08:20:00Z"
+  
+
+  // Fetch project, models, and views data
+  useEffect(() => {
+    fetchProjectData();
+  }, [projectId]);
+
+  const fetchProjectData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch project details
+      const projectData = await projectsAPI.getProject(projectId);
+      setProject(projectData);
+      
+      // Fetch models for this project
+      const modelsData = await modelsAPI.getModels(projectId);
+      setModels(modelsData.results || modelsData);
+      
+      // Fetch views for this project
+      const viewsData = await viewsAPI.getViews(projectId);
+      const transformedViews = transformViewsData(viewsData.results || viewsData);
+      setViews(transformedViews);
+      
+      // Set initial selected view
+      if (transformedViews.length > 0) {
+        setSelectedView(transformedViews[0]);
+      }
+      
+    } catch (err) {
+      console.error('Error fetching project data:', err);
+      setError('Failed to load project data');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleAddView = () => {
-    const newView = {
-      id: Date.now(),
-      name: `NewView${views.length + 1}`,
-      model: "User",
-      type: "List",
-      permissions: [],
-      pagination: true,
-      pageSize: 20,
-      fields: [],
-      filters: [],
-      searchFields: [],
-      ordering: []
+  // Transform backend data to frontend format
+  const transformViewsData = (backendViews) => {
+    return backendViews.map(view => ({
+      id: view.id,
+      name: view.name,
+      model: view.model, // This should be the model ID
+      type: view.view_type === 'list' ? 'List' : 'Detail',
+      permissions: view.permissions || [],
+      pagination: view.pagination_enabled || false, // Ensure boolean
+      pageSize: view.page_size || 20,
+      fields: view.included_fields?.map(field => 
+        typeof field === 'string' ? field : field.field_name || field.name
+      ) || [],
+      filters: view.filter_fields || [],
+      searchFields: view.search_fields || [],
+      ordering: view.ordering_fields || [],
+      description: view.description || '',
+      created_at: view.created_at,
+      updated_at: view.updated_at
+    }));
+  };
+
+  // Transform frontend data to backend format
+  const transformToBackendFormat = (frontendView) => {
+    return {
+      name: frontendView.name,
+      model: frontendView.model, // This should be the model ID
+      view_type: frontendView.type.toLowerCase(), // Convert to backend format
+      description: frontendView.description || '',
+      permissions: frontendView.permissions,
+      pagination_enabled: frontendView.pagination,
+      page_size: frontendView.pageSize,
+      ordering_fields: frontendView.ordering,
+      search_fields: frontendView.searchFields,
+      filter_fields: frontendView.filters
     };
-    setViews([...views, newView]);
-    setSelectedView(newView);
-    setIsCreatingNew(true);
   };
 
-  const handleDeleteView = (viewId) => {
-    if (views.length <= 1) {
-      alert("You must have at least one view");
-      return;
-    }
-    
-    const updatedViews = views.filter(view => view.id !== viewId);
-    setViews(updatedViews);
-    
-    if (selectedView.id === viewId) {
-      setSelectedView(updatedViews[0]);
-    }
-  };
-
-  const handleUpdateView = (updatedView) => {
-    const updatedViews = views.map(view => 
-      view.id === selectedView.id ? { ...view, ...updatedView } : view
-    );
-    setViews(updatedViews);
-    setSelectedView(prev => ({ ...prev, ...updatedView }));
-    setIsCreatingNew(false);
-  };
-
-  const handleDuplicateView = (viewId) => {
-    const viewToDuplicate = views.find(view => view.id === viewId);
-    if (viewToDuplicate) {
-      const duplicatedView = {
-        ...viewToDuplicate,
-        id: Date.now(),
-        name: `${viewToDuplicate.name}_Copy`
+  const handleAddView = async () => {
+    try {
+      if (models.length === 0) {
+        alert('No models available. Please create a model first.');
+        return;
+      }
+  
+      const defaultModel = models[0];
+      const newViewData = {
+        name: `NewView${views.length + 1}`,
+        model: defaultModel.id,
+        view_type: 'list',
+        permissions: ['IsAuthenticated'],
+        pagination_enabled: true,
+        page_size: 20,
+        ordering_fields: [],
+        search_fields: [],
+        filter_fields: [],
+        description: ''
       };
-      setViews([...views, duplicatedView]);
-      setSelectedView(duplicatedView);
+  
+      console.log('Creating new view:', newViewData);
+      
+      const createdView = await viewsAPI.createView(projectId, newViewData);
+      console.log('View created:', createdView);
+      
+      // Transform the created view to frontend format and add to local state
+      const transformedView = transformViewsData([createdView])[0];
+      
+      setViews(prevViews => [...prevViews, transformedView]);
+      setSelectedView(transformedView);
+      
+      setIsCreatingNew(true);
+      if (isMobile) setShowMobileViewsList(false);
+      
+    } catch (err) {
+      console.error('Error creating view:', err);
+      setError(`Failed to create view: ${err.response?.data ? JSON.stringify(err.response.data) : err.message}`);
     }
   };
+
+  const handleDeleteView = async (viewId) => {
+    try {
+      if (views.length <= 1) {
+        alert("You must have at least one view");
+        return;
+      }
+      
+      await viewsAPI.deleteView(projectId, viewId);
+      
+      // Update local state
+      const updatedViews = views.filter(view => view.id !== viewId);
+      setViews(updatedViews);
+      
+      if (selectedView?.id === viewId) {
+        setSelectedView(updatedViews[0] || null);
+      }
+      
+    } catch (err) {
+      console.error('Error deleting view:', err);
+      setError(`Failed to delete view: ${err.response?.data ? JSON.stringify(err.response.data) : err.message}`);
+    }
+  };
+
+    const handleUpdateView = async (updatedView) => {
+      try {
+        console.log('Updating view:', updatedView);
+        
+        const backendData = transformToBackendFormat(updatedView);
+        const response = await viewsAPI.updateView(projectId, updatedView.id, backendData);
+        
+        // Update local state instead of refetching
+        setViews(prevViews => 
+          prevViews.map(view => 
+            view.id === updatedView.id ? updatedView : view
+          )
+        );
+        
+        // Update selected view if it's the one being edited
+        if (selectedView?.id === updatedView.id) {
+          setSelectedView(updatedView);
+        }
+        
+        setIsCreatingNew(false);
+        
+        console.log('View updated successfully');
+        
+      } catch (err) {
+        console.error('Error updating view:', err);
+        setError(`Failed to update view: ${err.response?.data ? JSON.stringify(err.response.data) : err.message}`);
+        throw err;
+      }
+    };    
+
+    const handleDuplicateView = async (viewId) => {
+      try {
+        const viewToDuplicate = views.find(view => view.id === viewId);
+        if (viewToDuplicate) {
+          const duplicatedViewData = {
+            ...transformToBackendFormat(viewToDuplicate),
+            name: `${viewToDuplicate.name}_Copy`
+          };
+          
+          const duplicatedView = await viewsAPI.createView(projectId, duplicatedViewData);
+          console.log('View duplicated:', duplicatedView);
+          
+          // Transform and add to local state
+          const transformedView = transformViewsData([duplicatedView])[0];
+          setViews(prevViews => [...prevViews, transformedView]);
+        }
+      } catch (err) {
+        console.error('Error duplicating view:', err);
+        setError(`Failed to duplicate view: ${err.response?.data ? JSON.stringify(err.response.data) : err.message}`);
+      }
+    };
 
   const handlePublish = () => {
     // Simulate publishing
@@ -142,7 +219,6 @@ const Views = () => {
   };
 
   const handleGenerateCode = () => {
-    // Generate downloadable code
     const code = generateDjangoCode(views);
     downloadCode(code, 'views.py');
   };
@@ -190,6 +266,54 @@ const Views = () => {
     URL.revokeObjectURL(url);
   };
 
+  // Check screen size on mount and resize
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full bg-background-dark font-body text-primary-text overflow-hidden">
+        <Sidebar activeTab="views" />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-screen w-full bg-background-dark font-body text-primary-text overflow-hidden">
+        <Sidebar activeTab="views" />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-400 text-xl mb-4">{error}</p>
+            <button 
+              onClick={fetchProjectData}
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Prepare available models data for the form
+  const availableModels = models.map(model => ({
+    name: model.name,
+    id: model.id,
+    fields: model.fields?.map(field => field.name) || []
+  }));
+
   return (
     <div className="flex h-screen w-full bg-background-dark font-body text-primary-text overflow-hidden">
       <Sidebar 
@@ -199,17 +323,44 @@ const Views = () => {
       />
       
       <div className="flex-1 flex flex-col min-h-0">
-        <div className="flex-shrink-0 p-8">
-          <Breadcrumbs projectName="E-commerce API" currentPage="Views" projectId={projectId} />
+        <div className="flex-shrink-0 p-4 lg:p-8">
+          <Breadcrumbs 
+            projectName={project?.name || "Project"} 
+            currentPage="Views" 
+            projectId={projectId} 
+          />
+          
+          {/* Mobile Views List Toggle */}
+          {isMobile && (
+            <button
+              onClick={() => setShowMobileViewsList(!showMobileViewsList)}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-primary text-black font-bold mb-4 lg:hidden"
+            >
+              <span className="material-symbols-outlined">
+                {showMobileViewsList ? 'close' : 'list'}
+              </span>
+              {showMobileViewsList ? 'Close Views List' : 'Show Views List'}
+            </button>
+          )}
         </div>
         
         <div className="flex-1 flex min-h-0">
-          {/* Views List Sidebar - Fixed height, no scroll */}
-          <div className="w-80 border-r border-gray-700 bg-[#1A1A1A] flex flex-col">
+          {/* Views List Sidebar - Responsive behavior */}
+          <div className={`
+            ${isMobile 
+              ? `fixed inset-0 z-50 bg-[#1A1A1A] transform transition-transform duration-300 ${
+                  showMobileViewsList ? 'translate-x-0' : '-translate-x-full'
+                }` 
+              : 'w-80 border-r border-gray-700 bg-[#1A1A1A]'
+            } flex flex-col`}
+          >
             <ViewsList
               views={views}
               selectedView={selectedView}
-              onSelectView={setSelectedView}
+              onSelectView={(view) => {
+                setSelectedView(view);
+                if (isMobile) setShowMobileViewsList(false);
+              }}
               onAddView={handleAddView}
               onDeleteView={handleDeleteView}
               onDuplicateView={handleDuplicateView}
@@ -217,23 +368,42 @@ const Views = () => {
           </div>
           
           {/* Main Content - Scrollable area */}
-          <div className="flex-1 overflow-auto p-8">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 min-h-0">
-              <ViewConfiguration 
-                view={selectedView}
-                onUpdateView={handleUpdateView}
-                availableModels={availableModels}
-                isCreatingNew={isCreatingNew}
-              />
-              <ApiEndpointPreview 
-                view={selectedView}
-                mockResponse={mockApiResponses[selectedView.name]}
-              />
-              <ApiTestConsole 
-                view={selectedView}
-                mockResponse={mockApiResponses[selectedView.name]}
-              />
-            </div>
+          <div className={`
+            flex-1 overflow-auto p-4 lg:p-8 transition-all duration-300
+            ${isMobile && showMobileViewsList ? 'opacity-0 pointer-events-none' : 'opacity-100'}
+          `}>
+            {selectedView ? (
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 min-h-0">
+                <ViewConfiguration 
+                  view={selectedView}
+                  onUpdateView={handleUpdateView}
+                  availableModels={availableModels}
+                  isCreatingNew={isCreatingNew}
+                />
+                <ApiEndpointPreview 
+                  view={selectedView}
+                  project={project}
+                />
+                <ApiTestConsole 
+                  view={selectedView}
+                  project={project}
+                />
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <span className="material-symbols-outlined text-6xl text-gray-500 mb-4">api</span>
+                  <h3 className="text-xl text-white mb-2">No Views Yet</h3>
+                  <p className="text-gray-400 mb-4">Create your first view to get started</p>
+                  <button 
+                    onClick={handleAddView}
+                    className="bg-primary text-black font-bold py-3 px-6 rounded-lg hover:bg-primary/80 transition-colors"
+                  >
+                    Create First View
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

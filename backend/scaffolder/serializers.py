@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Project, DatabaseModel, ModelField, Relationship, GeneratedProject
+from .models import Project, DatabaseModel, ModelField, Relationship, GeneratedProject, View, ViewField
 
 class ModelFieldSerializer(serializers.ModelSerializer):
     class Meta:
@@ -61,3 +61,28 @@ class GeneratedProjectSerializer(serializers.ModelSerializer):
         model = GeneratedProject
         fields = '__all__'
         read_only_fields = ('id', 'generated_at')
+        
+        
+# In your serializers.py, add View serializers
+class ViewFieldSerializer(serializers.ModelSerializer):
+    field_name = serializers.CharField(source='model_field.name', read_only=True)
+    field_type = serializers.CharField(source='model_field.field_type', read_only=True)
+    
+    class Meta:
+        model = ViewField
+        fields = ['id', 'model_field', 'field_name', 'field_type', 'order']
+        read_only_fields = ('id',)
+
+class ViewSerializer(serializers.ModelSerializer):
+    included_fields = ViewFieldSerializer(many=True, read_only=True)
+    model_name = serializers.CharField(source='model.name', read_only=True)
+    
+    class Meta:
+        model = View
+        fields = [
+            'id', 'name', 'model', 'model_name', 'view_type', 'description',
+            'permissions', 'pagination_enabled', 'page_size', 
+            'ordering_fields', 'search_fields', 'filter_fields',
+            'included_fields', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ('id', 'created_at', 'updated_at')

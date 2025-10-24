@@ -112,7 +112,7 @@ const ProjectDashboard = () => {
           
           <StatsGrid stats={stats} />
           
-          <ModelsGrid models={recentModels} />
+          <ModelsGrid models={recentModels} projectId={projectId} />
         </div>
       </main>
     </div>

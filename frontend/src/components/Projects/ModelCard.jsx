@@ -1,4 +1,6 @@
-const ModelCard = ({ model }) => {
+import { Link } from "react-router-dom";
+
+const ModelCard = ({ model, projectId }) => {
     return (
       <div className="bg-accent-dark rounded-xl p-6 shadow-neumorphic border border-white/5 hover:border-primary/50 transition-all duration-300 group">
         <div className="flex justify-between items-start">
@@ -11,10 +13,13 @@ const ModelCard = ({ model }) => {
           <span>Last updated: {model.lastUpdated}</span>
         </div>
         <div className="mt-4 pt-4 border-t border-white/10">
-          <a className="text-primary font-medium text-sm flex items-center gap-2 group-hover:underline" href="#">
-            Go to builder
-            <span className="material-symbols-outlined text-sm transition-transform group-hover:translate-x-1">arrow_forward</span>
-          </a>
+        <Link 
+          to={`/project/${projectId}/database/`} 
+          className="text-primary font-medium text-sm flex items-center gap-2 group-hover:underline"
+        >
+          Go to builder
+          <span className="material-symbols-outlined text-sm transition-transform group-hover:translate-x-1">arrow_forward</span>
+        </Link>
         </div>
       </div>
     );

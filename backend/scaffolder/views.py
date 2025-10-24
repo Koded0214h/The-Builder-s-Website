@@ -7,11 +7,12 @@ from django.shortcuts import get_object_or_404
 import zipfile
 import io
 
-from .models import Project, DatabaseModel, ModelField, Relationship
+from .models import Project, DatabaseModel, ModelField, Relationship, View, ViewField
 from .serializers import (
     ProjectListSerializer, ProjectDetailSerializer, 
     DatabaseModelSerializer, ModelFieldSerializer, 
-    RelationshipSerializer, GeneratedProjectSerializer
+    RelationshipSerializer, GeneratedProjectSerializer,
+    ViewSerializer, ViewFieldSerializer
 )
 from .permissions import IsOwnerOrReadOnly, IsProjectOwner
 from .code_generators import DjangoCodeGenerator, ExpressCodeGenerator
@@ -119,3 +120,30 @@ class RelationshipViewSet(viewsets.ModelViewSet):
         from_model = get_object_or_404(DatabaseModel, pk=self.request.data.get('from_model'), project=project)
         to_model = get_object_or_404(DatabaseModel, pk=self.request.data.get('to_model'), project=project)
         serializer.save(from_model=from_model, to_model=to_model)
+        
+        
+class ViewViewSet(viewsets.ModelViewSet):
+    serializer_class = ViewSerializer
+    permission_classes = [IsAuthenticated, IsProjectOwner]
+    
+    def get_queryset(self):
+        return View.objects.filter(project_id=self.kwargs['project_pk']).prefetch_related('included_fields')
+    
+    def perform_create(self, serializer):
+        project = get_object_or_404(Project, pk=self.kwargs['project_pk'], owner=self.request.user)
+        serializer.save(project=project)
+
+class ViewFieldViewSet(viewsets.ModelViewSet):
+    serializer_class = ViewFieldSerializer
+    permission_classes = [IsAuthenticated, IsProjectOwner]
+    
+    def get_queryset(self):
+        return ViewField.objects.filter(view__project_id=self.kwargs['project_pk'])
+    
+    def perform_create(self, serializer):
+        view = get_object_or_404(
+            View, 
+            pk=self.kwargs['view_pk'],
+            project_id=self.kwargs['project_pk']
+        )
+        serializer.save(view=view)
