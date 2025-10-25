@@ -5,7 +5,7 @@ class ModelFieldSerializer(serializers.ModelSerializer):
     class Meta:
         model = ModelField
         fields = ['id', 'name', 'field_type', 'max_length', 'null', 'blank', 
-                 'unique', 'default_value', 'help_text', 'order']
+                 'unique', 'primary_key', 'default_value', 'help_text', 'order', 'relationship_data']
         read_only_fields = ('id',)
 
 class RelationshipSerializer(serializers.ModelSerializer):

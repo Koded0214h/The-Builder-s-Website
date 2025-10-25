@@ -148,7 +148,7 @@ CMD ["npm", "run", "dev"]
 
 class DjangoCodeGenerator(BaseCodeGenerator):
     def generate_models_code(self):
-        """Generate Django models.py content"""
+        """Generate Django models.py content with proper relationships"""
         models_code = """from django.db import models
 from django.contrib.auth.models import User
 
@@ -157,18 +157,24 @@ from django.contrib.auth.models import User
         for model in self.models:
             models_code += f"class {model.name}(models.Model):\n"
             
-            # Add regular fields
+            # First, add all regular fields (non-relationship fields)
             for field in model.fields.all():
-                field_def = self._generate_django_field(field)
-                models_code += f"    {field_def}\n"
+                # Skip fields that are part of relationships (they'll be replaced with relationship fields)
+                if not getattr(field, 'relationship_data', None):
+                    field_def = self._generate_django_field(field)
+                    if field_def:
+                        models_code += f"    {field_def}\n"
             
-            # Add relationships
-            for rel in model.outgoing_relationships.all():
-                rel_def = self._generate_django_relationship(rel)
-                models_code += f"    {rel_def}\n"
+            # Then, add relationship fields
+            for field in model.fields.all():
+                relationship_data = getattr(field, 'relationship_data', None)
+                if relationship_data:
+                    rel_def = self._generate_django_relationship_from_data(field, relationship_data)
+                    if rel_def:
+                        models_code += f"    {rel_def}\n"
             
             # Add Meta class and __str__
-            display_field = model.display_field or 'id'
+            display_field = getattr(model, 'display_field', 'id') or 'id'
             models_code += f"""
     class Meta:
         ordering = ['-id']
@@ -183,7 +189,7 @@ from django.contrib.auth.models import User
         return models_code
     
     def _generate_django_field(self, field):
-        """Generate Django field definition"""
+        """Generate Django field definition for regular fields only"""
         field_type_map = {
             'char': 'models.CharField',
             'text': 'models.TextField',
@@ -200,6 +206,10 @@ from django.contrib.auth.models import User
             'json': 'models.JSONField',
         }
         
+        # Skip fields that have relationship data (they'll be handled separately)
+        if getattr(field, 'relationship_data', None):
+            return None
+            
         field_args = []
         field_type = field_type_map.get(field.field_type, 'models.CharField')
         
@@ -216,34 +226,130 @@ from django.contrib.auth.models import User
             field_args.append("blank=True")
         if field.unique:
             field_args.append("unique=True")
+        if field.primary_key:
+            field_args.append("primary_key=True")
         if field.default_value:
-            field_args.append(f"default='{field.default_value}'")
+            # Handle different types of default values
+            if field.field_type in ['integer', 'boolean']:
+                field_args.append(f"default={field.default_value}")
+            else:
+                field_args.append(f"default='{field.default_value}'")
         if field.help_text:
             field_args.append(f"help_text='{field.help_text}'")
         
         args_str = ", ".join(field_args)
         return f"{field.name} = {field_type}({args_str})"
     
-    def _generate_django_relationship(self, relationship):
-        """Generate Django relationship field"""
-        rel_type_map = {
-            'foreign_key': 'models.ForeignKey',
-            'one_to_one': 'models.OneToOneField',
-            'many_to_many': 'models.ManyToManyField',
-        }
+    def _generate_django_relationship_from_data(self, field, relationship_data):
+        """Generate Django relationship from field relationship data"""
+        if not relationship_data or 'references' not in relationship_data:
+            return None
+            
+        # Map frontend relationship types to Django relationship types
+        frontend_type = relationship_data.get('relationshipType', '1:M')
+        django_relationship_type = self._map_relationship_type(frontend_type)
         
-        args = [relationship.to_model.name]
-        args.append(f"on_delete=models.{relationship.on_delete.upper()}")
+        # Get the referenced model and field
+        referenced_model = relationship_data['references']['model']
+        referenced_field = relationship_data['references']['field']
         
-        if relationship.null:
-            args.append("null=True")
-        if relationship.blank:
-            args.append("blank=True")
-        if relationship.related_name:
-            args.append(f"related_name='{relationship.related_name}'")
+        # Create a new field name for the relationship
+        # Use a more descriptive name than the original field name
+        relationship_field_name = self._generate_relationship_field_name(
+            field.name, referenced_model, django_relationship_type
+        )
         
-        return f"{relationship.name} = {rel_type_map[relationship.relationship_type]}({', '.join(args)})"
+        # Generate the relationship field
+        if django_relationship_type == 'one_to_one':
+            return self._generate_one_to_one_field(relationship_field_name, referenced_model, relationship_data)
+        elif django_relationship_type == 'foreign_key':
+            return self._generate_foreign_key_field(relationship_field_name, referenced_model, relationship_data)
+        elif django_relationship_type == 'many_to_many':
+            return self._generate_many_to_many_field(relationship_field_name, referenced_model, relationship_data)
+        else:
+            return self._generate_foreign_key_field(relationship_field_name, referenced_model, relationship_data)
     
+    def _generate_relationship_field_name(self, original_field_name, referenced_model, relationship_type):
+        """Generate a meaningful name for the relationship field"""
+        model_name_lower = referenced_model.lower()
+        
+        if relationship_type == 'one_to_one':
+            return f"{model_name_lower}"
+        elif relationship_type == 'foreign_key':
+            return f"{model_name_lower}"
+        elif relationship_type == 'many_to_many':
+            return f"{model_name_lower}s"
+        else:
+            return f"{model_name_lower}"
+    
+    def _generate_one_to_one_field(self, field_name, referenced_model, relationship_data):
+        """Generate a OneToOneField"""
+        args = [referenced_model]
+        on_delete = relationship_data.get('onDelete', 'CASCADE')
+        args.append(f"on_delete=models.{on_delete}")
+        
+        # Add related_name
+        related_name = f"{field_name}_set"
+        args.append(f"related_name='{related_name}'")
+        
+        # Add field options
+        if relationship_data.get('null'):
+            args.append("null=True")
+        if relationship_data.get('blank'):
+            args.append("blank=True")
+        
+        return f"{field_name} = models.OneToOneField({', '.join(args)})"
+    
+    def _generate_foreign_key_field(self, field_name, referenced_model, relationship_data):
+        """Generate a ForeignKey field"""
+        args = [referenced_model]
+        on_delete = relationship_data.get('onDelete', 'CASCADE')
+        args.append(f"on_delete=models.{on_delete}")
+        
+        # Add related_name
+        related_name = f"{field_name}_set"
+        args.append(f"related_name='{related_name}'")
+        
+        # Add field options
+        if relationship_data.get('null'):
+            args.append("null=True")
+        if relationship_data.get('blank'):
+            args.append("blank=True")
+        
+        return f"{field_name} = models.ForeignKey({', '.join(args)})"
+    
+    def _generate_many_to_many_field(self, field_name, referenced_model, relationship_data):
+        """Generate a ManyToManyField"""
+        args = [referenced_model]
+        
+        # Add related_name
+        related_name = f"{field_name}_set"
+        args.append(f"related_name='{related_name}'")
+        
+        # Add through table if specified
+        if relationship_data.get('through'):
+            args.append(f"through='{relationship_data['through']}'")
+        
+        # Add field options
+        if relationship_data.get('null'):
+            args.append("null=True")
+        if relationship_data.get('blank'):
+            args.append("blank=True")
+        
+        return f"{field_name} = models.ManyToManyField({', '.join(args)})"
+    
+    def _map_relationship_type(self, frontend_type):
+        """Map frontend relationship types to Django relationship types"""
+        if frontend_type == '1:1':
+            return 'one_to_one'
+        elif frontend_type == '1:M':
+            return 'foreign_key'
+        elif frontend_type == 'M:M':
+            return 'many_to_many'
+        else:
+            return 'foreign_key'
+    
+    # ... keep the rest of your methods (serializers, views, urls, etc.) the same
     def generate_serializers_code(self):
         """Generate DRF serializers"""
         serializers_code = """from rest_framework import serializers

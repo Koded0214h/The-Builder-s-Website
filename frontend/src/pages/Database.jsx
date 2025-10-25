@@ -18,12 +18,14 @@ const Database = () => {
   const [selectedField, setSelectedField] = useState(null);
   const [isNewField, setIsNewField] = useState(false);
   const [currentModelId, setCurrentModelId] = useState(null);
+  const [relationships, setRelationships] = useState([]); 
   
   // Fetch project and models data
   useEffect(() => {
     fetchProjectData();
   }, [projectId]);
 
+  // In your Database.jsx, update the fetchProjectData function
   const fetchProjectData = async () => {
     try {
       setLoading(true);
@@ -33,7 +35,23 @@ const Database = () => {
       
       // Fetch models for this project
       const modelsData = await modelsAPI.getModels(projectId);
-      setModels(modelsData.results || modelsData);
+      const modelsWithRelationships = (modelsData.results || modelsData).map(model => ({
+        ...model,
+        fields: (model.fields || []).map(field => ({
+          ...field,
+          // Convert relationship_data to relationship for frontend compatibility
+          relationship: field.relationship_data || null
+        }))
+      }));
+      
+      setModels(modelsWithRelationships);
+      
+      // Recreate relationships from field data and store them
+      const loadedRelationships = recreateRelationshipsFromFieldData(modelsWithRelationships);
+      setRelationships(loadedRelationships); // Store relationships in state
+      
+      console.log('🔄 Loaded relationships:', loadedRelationships.length);
+      
     } catch (err) {
       console.error('Error fetching project data:', err);
       setError('Failed to load project data');
@@ -41,6 +59,74 @@ const Database = () => {
       setLoading(false);
     }
   };
+
+  const recreateRelationshipsFromFieldData = (models) => {
+    const relationships = [];
+    
+    console.log('🔄 Recreating relationships from field data...');
+    
+    models.forEach(model => {
+      model.fields?.forEach(field => {
+        if (field.relationship_data) {
+          const relData = field.relationship_data;
+          const fromModel = model;
+          const toModel = models.find(m => m.name === relData.references?.model);
+          
+          console.log('📋 Found relationship data:', {
+            fromModel: fromModel.name,
+            field: field.name,
+            toModel: relData.references?.model,
+            toField: relData.references?.field,
+            relationshipType: relData.relationshipType
+          });
+          
+          if (toModel) {
+            const toField = toModel.fields?.find(f => f.name === relData.references?.field);
+            
+            if (toField) {
+              // Calculate field indices safely
+              const fromFieldIndex = fromModel.fields?.findIndex(f => f.id === field.id) || 0;
+              const toFieldIndex = toModel.fields?.findIndex(f => f.id === toField.id) || 0;
+              
+              const relationship = {
+                id: `${fromModel.id}-${field.id}-${toModel.id}-${toField.id}`,
+                from: {
+                  modelId: fromModel.id,
+                  fieldName: field.name,
+                  fieldType: field.field_type,
+                  modelName: fromModel.name,
+                  fieldIndex: fromFieldIndex,
+                  relativeX: 256,
+                  relativeY: 80 + (fromFieldIndex * 40)
+                },
+                to: {
+                  modelId: toModel.id,
+                  fieldName: toField.name,
+                  fieldType: toField.field_type,
+                  modelName: toModel.name,
+                  fieldIndex: toFieldIndex,
+                  relativeX: 0,
+                  relativeY: 80 + (toFieldIndex * 40)
+                },
+                type: relData.relationshipType || '1:M'
+              };
+              
+              relationships.push(relationship);
+              console.log('✅ Recreated relationship:', relationship);
+            } else {
+              console.warn('⚠️ Could not find toField:', relData.references?.field);
+            }
+          } else {
+            console.warn('⚠️ Could not find toModel:', relData.references?.model);
+          }
+        }
+      });
+    });
+    
+    console.log(`🎯 Total relationships recreated: ${relationships.length}`);
+    return relationships;
+  };
+
 
   // In your Database.jsx, update the handleAddModel function:
 const handleAddModel = async () => {
@@ -135,22 +221,26 @@ const handleAddModel = async () => {
   const handleSaveField = async (fieldData, modelId) => {
     try {
       console.log('💾 handleSaveField called:', { fieldData, modelId, isNewField });
-      console.log('📊 Field data details:', {
+      
+      // Only send the fields that the backend expects
+      const fieldDataForBackend = {
         name: fieldData.name,
         field_type: fieldData.field_type,
         max_length: fieldData.max_length,
-        max_length_type: typeof fieldData.max_length,
-        has_max_length: fieldData.max_length !== null && fieldData.max_length !== undefined
-      });
+        null: fieldData.null || false,
+        blank: fieldData.blank || false,
+        unique: fieldData.unique || false,
+        primary_key: fieldData.primary_key || false,
+        default_value: fieldData.default_value || '',
+        help_text: fieldData.help_text || '',
+        order: fieldData.order || 0,
+        relationship_data: fieldData.relationship || null  // Send relationship data
+      };
       
       if (isNewField) {
-        // Add new field
-        console.log('📤 Creating field with data:', fieldData);
-        
-        const createdField = await modelsAPI.createField(projectId, modelId, fieldData);
+        const createdField = await modelsAPI.createField(projectId, modelId, fieldDataForBackend);
         console.log('✅ Field created successfully:', createdField);
         
-        // Update local state
         setModels(prev => prev.map(model => 
           model.id === modelId 
             ? { 
@@ -160,13 +250,27 @@ const handleAddModel = async () => {
             : model
         ));
       } else {
-        // Update existing field
-        // Note: You'll need to implement updateField in your API
-        // For now, we'll just update the local state
+        // Update existing field - only send the fields we want to update
+        const updateData = {
+          name: fieldData.name,
+          field_type: fieldData.field_type,
+          max_length: fieldData.max_length,
+          null: fieldData.null || false,
+          blank: fieldData.blank || false,
+          unique: fieldData.unique || false,
+          primary_key: fieldData.primary_key || false,
+          default_value: fieldData.default_value || '',
+          help_text: fieldData.help_text || '',
+          relationship_data: fieldData.relationship || null
+        };
+        
+        const updatedField = await modelsAPI.updateField(projectId, modelId, selectedField.id, updateData);
+        console.log('✅ Field updated successfully:', updatedField);
+        
         setModels(prev => prev.map(model => ({
           ...model,
           fields: (model.fields || []).map(field => 
-            field.id === selectedField.id ? { ...field, ...fieldData } : field
+            field.id === selectedField.id ? { ...field, ...updatedField } : field
           )
         })));
       }
@@ -258,7 +362,9 @@ const handleAddModel = async () => {
               onFieldClick={handleFieldClick}
               onAddField={handleAddField}
               onDeleteModel={handleDeleteModel}
-              onModelUpdate={handleModelUpdate}  // Add this line
+              onModelUpdate={handleModelUpdate}  
+              projectId={projectId}
+              initialRelationships={relationships}
             />
           )}
         </div>

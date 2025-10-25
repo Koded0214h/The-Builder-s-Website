@@ -4,19 +4,37 @@ import FloatingToolbar from './FloatingToolbar';
 import RelationshipLine from './RelationshipLine';
 import RelationshipTypeModal from './RelationshipTypeModal';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
+import { modelsAPI } from '../../services/api';
 
-const VisualBuilder = ({ models, onAddModel, onGenerateCode, onFieldClick, onAddField, onDeleteModel, onDeleteRelationship, onModelUpdate  }) => {
+const VisualBuilder = ({ models, onAddModel, onGenerateCode, onFieldClick, onAddField, onDeleteModel, onDeleteRelationship, onModelUpdate, initialRelationships = [], projectId }) => {
   // Initialize model positions based on models prop
   const [modelPositions, setModelPositions] = useState({});
-  const [relationships, setRelationships] = useState([]);
+  const [relationships, setRelationships] = useState(initialRelationships);
   const [isRelationshipMode, setIsRelationshipMode] = useState(false);
   const [showRelationshipModal, setShowRelationshipModal] = useState(false);
+  const [currentRelationshipType, setCurrentRelationshipType] = useState('1:M');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedFields, setSelectedFields] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [zoom, setZoom] = useState(1);
 
   // Initialize model positions when models change
+
+  useEffect(() => {
+    console.log('📊 VisualBuilder relationships loaded:', relationships.length);
+    console.log('📊 Relationships:', relationships);
+  }, [relationships]);
+
+  useEffect(() => {
+    // If we have initial relationships but the relationships state is empty,
+    // it means we just loaded the component and should use the initial relationships
+    if (initialRelationships.length > 0 && relationships.length === 0) {
+      console.log('🔄 Initializing relationships from props');
+      setRelationships(initialRelationships);
+    }
+  }, [initialRelationships, relationships.length]);
+
+
   useEffect(() => {
     const newPositions = {};
     models.forEach((model, index) => {
@@ -88,7 +106,7 @@ useEffect(() => {
 
   const handleFieldClickForRelationship = useCallback((field, modelId) => {
     if (!isRelationshipMode) return;
-
+  
     const fieldWithModel = {
       ...field,
       modelId,
@@ -98,18 +116,16 @@ useEffect(() => {
     };
     
     setSelectedFields(prev => {
-      // Prevent selecting the same field twice
       if (prev.some(f => f.modelId === modelId && f.name === field.name)) {
         return prev;
       }
       
       const newSelection = [...prev, fieldWithModel];
       
-      // If we have two fields selected, create a relationship
       if (newSelection.length === 2) {
         const [from, to] = newSelection;
         
-        // Store relative positions for dynamic updates
+        // Create the relationship object with the selected type
         const newRelationship = {
           id: Date.now(),
           from: { 
@@ -118,8 +134,8 @@ useEffect(() => {
             fieldType: from.field_type,
             modelName: from.modelName,
             fieldIndex: from.fieldIndex,
-            relativeX: 256, // Right side of model
-            relativeY: 80 + (from.fieldIndex * 40) // Based on field position
+            relativeX: 256,
+            relativeY: 80 + (from.fieldIndex * 40)
           },
           to: { 
             modelId: to.modelId,
@@ -127,21 +143,143 @@ useEffect(() => {
             fieldType: to.field_type,
             modelName: to.modelName,
             fieldIndex: to.fieldIndex,
-            relativeX: 0, // Left side of model
-            relativeY: 80 + (to.fieldIndex * 40) // Based on field position
+            relativeX: 0,
+            relativeY: 80 + (to.fieldIndex * 40)
           },
-          type: '1:M' // We'll set this from the modal
+          type: currentRelationshipType
         };
-
+  
+        // Update the actual model fields with relationship data based on type
+        const updatedModels = models.map(model => {
+          if (model.id === from.modelId) {
+            const updatedFields = model.fields.map(f => {
+              if (f.name === from.name) {
+                const relationshipData = {
+                  type: getRelationshipFieldType(currentRelationshipType, 'from'),
+                  references: {
+                    model: to.modelName,
+                    field: to.name
+                  },
+                  relationshipType: currentRelationshipType,
+                  onDelete: 'CASCADE',
+                  onUpdate: 'CASCADE'
+                };
+                
+                // Update the field with relationship data
+                const updatedField = {
+                  ...f,
+                  relationship: relationshipData
+                };
+                
+                // Save the relationship data to backend
+                saveFieldRelationshipData(from.modelId, f.id, relationshipData);
+                
+                return updatedField;
+              }
+              return f;
+            });
+            return { ...model, fields: updatedFields };
+          }
+          
+          if (model.id === to.modelId) {
+            // For the referenced model, mark as primary key if needed
+            const updatedFields = model.fields.map(f => {
+              if (f.name === to.name && !f.primary_key && currentRelationshipType !== 'M:M') {
+                const updatedField = {
+                  ...f,
+                  primary_key: true
+                };
+                
+                // Save the primary key change to backend
+                saveFieldPrimaryKey(to.modelId, f.id, true);
+                
+                return updatedField;
+              }
+              return f;
+            });
+            return { ...model, fields: updatedFields };
+          }
+          
+          return model;
+        });
+  
         setRelationships(prev => [...prev, newRelationship]);
         setIsRelationshipMode(false);
         setSelectedFields([]);
+        setCurrentRelationshipType('1:M');
         return [];
       }
       
       return newSelection;
     });
-  }, [isRelationshipMode, modelPositions, models]);
+  }, [isRelationshipMode, modelPositions, models, onModelUpdate, currentRelationshipType]);
+  
+  // Add these helper functions to save relationship data to backend
+  // Add these helper functions to save relationship data to backend
+const saveFieldRelationshipData = async (modelId, fieldId, relationshipData) => {
+  try {
+    console.log('💾 Saving relationship data to backend:', { projectId, modelId, fieldId, relationshipData });
+    
+    if (!projectId) {
+      console.error('❌ projectId is not available');
+      return;
+    }
+    
+    // Find the field to update
+    const fieldToUpdate = models
+      .find(m => m.id === modelId)
+      ?.fields?.find(f => f.id === fieldId);
+    
+    if (fieldToUpdate) {
+      // Only send the fields that the backend expects
+      const updateData = {
+        relationship_data: relationshipData  // Only send relationship_data
+      };
+      
+      await modelsAPI.updateField(projectId, modelId, fieldId, updateData);
+      console.log('✅ Relationship data saved successfully');
+    }
+  } catch (error) {
+    console.error('❌ Failed to save relationship data:', error);
+    console.error('❌ Error details:', error.response?.data);
+  }
+};
+
+const saveFieldPrimaryKey = async (modelId, fieldId, isPrimaryKey) => {
+  try {
+    console.log('💾 Saving primary key change to backend:', { projectId, modelId, fieldId, isPrimaryKey });
+    
+    if (!projectId) {
+      console.error('❌ projectId is not available');
+      return;
+    }
+    
+    // Only send the primary_key field
+    const updateData = {
+      primary_key: isPrimaryKey
+    };
+    
+    await modelsAPI.updateField(projectId, modelId, fieldId, updateData);
+    console.log('✅ Primary key change saved successfully');
+  } catch (error) {
+    console.error('❌ Failed to save primary key change:', error);
+    console.error('❌ Error details:', error.response?.data);
+  }
+};
+
+
+  const getRelationshipFieldType = (relationshipType, position) => {
+    switch (relationshipType) {
+      case '1:1':
+        return position === 'from' ? 'one_to_one' : 'one_to_one';
+      case '1:M':
+        return position === 'from' ? 'foreign_key' : 'primary_key';
+      case 'M:M':
+        return 'many_to_many';
+      default:
+        return 'foreign_key';
+    }
+  };
 
   const handleModelSelect = useCallback((modelId) => {
     setSelectedItem({ type: 'model', id: modelId });
@@ -176,11 +314,25 @@ const handleCanvasClick = useCallback((e) => {
     if (selectedItem) {
       if (selectedItem.type === 'model' && onDeleteModel) {
         onDeleteModel(selectedItem.id);
-        // Also remove relationships connected to this model
         setRelationships(prev => prev.filter(rel => 
           rel.from.modelId !== selectedItem.id && rel.to.modelId !== selectedItem.id
         ));
       } else if (selectedItem.type === 'relationship') {
+        const relationship = relationships.find(rel => rel.id === selectedItem.id);
+        
+        // Remove relationship data from the fields
+        if (relationship) {
+          const fromModel = models.find(m => m.id === relationship.from.modelId);
+          if (fromModel) {
+            const updatedFields = fromModel.fields.map(field => 
+              field.name === relationship.from.fieldName 
+                ? { ...field, relationship: undefined }
+                : field
+            );
+            onModelUpdate(fromModel.id, { fields: updatedFields });
+          }
+        }
+  
         setRelationships(prev => prev.filter(rel => rel.id !== selectedItem.id));
         if (onDeleteRelationship) {
           onDeleteRelationship(selectedItem.id);
@@ -189,7 +341,7 @@ const handleCanvasClick = useCallback((e) => {
     }
     setShowDeleteModal(false);
     setSelectedItem(null);
-  }, [selectedItem, onDeleteModel, onDeleteRelationship]);
+  }, [selectedItem, onDeleteModel, onDeleteRelationship, relationships, models, onModelUpdate]);
 
   const handleRelationshipMode = useCallback(() => {
     if (isRelationshipMode) {
@@ -204,6 +356,7 @@ const handleCanvasClick = useCallback((e) => {
     setShowRelationshipModal(false);
     setIsRelationshipMode(true);
     setSelectedFields([]);
+    setCurrentRelationshipType(type);
   }, []);
 
   const handleZoomIn = useCallback(() => {

@@ -1,4 +1,5 @@
 from rest_framework import permissions
+from .models import Project, DatabaseModel, ModelField, Relationship
 
 class IsOwnerOrReadOnly(permissions.BasePermission):
     """
@@ -16,19 +17,39 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
 
 class IsProjectOwner(permissions.BasePermission):
     """
-    Permission to only allow owners of the project to access related objects.
+    Custom permission to only allow owners of a project to edit it.
     """
     
-    def has_permission(self, request, view):
-        # Check if the related project belongs to the user
-        if 'project_pk' in view.kwargs:
-            from .models import Project
-            try:
-                project = Project.objects.get(pk=view.kwargs['project_pk'])
-                return project.owner == request.user
-            except Project.DoesNotExist:
-                return False
-        return True
-    
     def has_object_permission(self, request, view, obj):
-        return obj.project.owner == request.user
+        # Check if the user is the owner of the project
+        
+        # If obj is a Project
+        if isinstance(obj, Project):
+            return obj.owner == request.user
+        
+        # If obj is a DatabaseModel
+        elif isinstance(obj, DatabaseModel):
+            return obj.project.owner == request.user
+        
+        # If obj is a ModelField
+        elif isinstance(obj, ModelField):
+            return obj.database_model.project.owner == request.user
+        
+        # If obj is a Relationship
+        elif isinstance(obj, Relationship):
+            return obj.from_model.project.owner == request.user
+        
+        # If obj is a View
+        elif hasattr(obj, 'project'):
+            return obj.project.owner == request.user
+        
+        # If obj is a ViewField
+        elif hasattr(obj, 'view'):
+            return obj.view.project.owner == request.user
+        
+        # If obj is a URLRoute
+        elif hasattr(obj, 'project'):
+            return obj.project.owner == request.user
+        
+        # Default deny
+        return False

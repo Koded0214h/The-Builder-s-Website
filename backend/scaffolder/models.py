@@ -71,9 +71,11 @@ class ModelField(models.Model):
     null = models.BooleanField(default=False)
     blank = models.BooleanField(default=False)
     unique = models.BooleanField(default=False)
+    primary_key = models.BooleanField(default=False)  
     default_value = models.TextField(blank=True)
     help_text = models.CharField(max_length=255, blank=True)
     order = models.IntegerField(default=0)
+    relationship_data = models.JSONField(null=True, blank=True)  
     
     class Meta:
         ordering = ['order', 'name']
