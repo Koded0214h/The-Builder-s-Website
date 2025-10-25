@@ -172,6 +172,7 @@ SIMPLE_JWT = {
 
 # CORS Configuration
 CORS_ALLOW_ALL_ORIGINS=True
+CORS_ALLOW_ORIGINS = ['https://the-builders-website.vercel.app']
 
 # Spectacular Settings
 SPECTACULAR_SETTINGS = {
